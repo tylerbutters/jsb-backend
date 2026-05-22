@@ -15,7 +15,7 @@ export function createApp(config = defaultConfig) {
 		Object.entries(headers).forEach(([key, value]) => res.setHeader(key, value))
 
 		try {
-			const url = new URL(req.url, `https://jsm-3s98.onrender.com || "localhost"}`)
+			const url = new URL(req.url, "https://jsb-backend-e9sp.onrender.com")
 
 			if (req.method === "GET" && url.pathname === "/health") {
 				sendJson(res, 200, { status: "ok" })

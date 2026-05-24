@@ -118,6 +118,45 @@ const loginSchema = Joi.object({
 		"object.unknown": "{#label} is not allowed",
 	})
 
+const updateUserSchema = Joi.object({
+	email: Joi.string()
+		.trim()
+		.lowercase()
+		.email()
+		.max(254)
+		.messages({
+			"string.email": "Must be a valid email",
+			"string.max": "Email must be at most 254 characters",
+			"string.empty": "Email is required",
+		}),
+	displayName: Joi.string()
+		.trim()
+		.min(1)
+		.max(80)
+		.messages({
+			"string.min": "Display name is required",
+			"string.max": "Display name must be at most 80 characters",
+			"string.empty": "Display name is required",
+		}),
+	password: Joi.string()
+		.min(8)
+		.max(128)
+		.pattern(/[A-Za-z]/, "letter")
+		.pattern(/[0-9]/, "number")
+		.messages({
+			"string.min": "Password must be at least 8 characters",
+			"string.max": "Password must be at most 128 characters",
+			"string.pattern.name": "Password must include at least one {#name}",
+			"string.empty": "Password is required",
+		}),
+})
+	.or("email", "displayName", "password")
+	.required()
+	.messages({
+		"object.missing": "At least one account detail is required",
+		"object.unknown": "{#label} is not allowed",
+	})
+
 const translateSchema = Joi.object({
 	text: Joi.string().trim().min(1).max(1000).required().messages({
 		"string.min": "Text is required",
@@ -195,6 +234,50 @@ app.get(
 		}
 
 		res.status(200).send({
+			user: result.rows[0],
+		})
+	}),
+)
+
+app.patch(
+	`${root}/users/:user_id`,
+	asyncHandler(async (req, res) => {
+		const { error: paramsError, value: params } = userParamsSchema.validate(
+			req.params,
+			validationOptions,
+		)
+
+		if (paramsError) {
+			res.status(400).send(validationErrorResponse(paramsError))
+			return
+		}
+
+		const { error, value } = updateUserSchema.validate(req.body, validationOptions)
+
+		if (error) {
+			res.status(400).send(validationErrorResponse(error))
+			return
+		}
+
+		const passwordHash = value.password ? await hashPassword(value.password) : null
+		const result = await db.query(
+			`
+			UPDATE users
+			SET email = COALESCE($1, email),
+				display_name = COALESCE($2, display_name),
+				password_hash = COALESCE($3, password_hash)
+			WHERE id = $4
+			RETURNING id, email, display_name AS "displayName", created_at AS "createdAt", updated_at AS "updatedAt"
+		`,
+			[value.email ?? null, value.displayName ?? null, passwordHash, params.user_id],
+		)
+
+		if (result.rowCount === 0) {
+			throw new HttpError(404, "User not found.")
+		}
+
+		res.status(200).send({
+			message: "Account updated.",
 			user: result.rows[0],
 		})
 	}),

@@ -1,14 +1,9 @@
-import { randomBytes, scrypt as scryptCallback } from "node:crypto"
+import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto"
 import { promisify } from "node:util"
 import express from "express"
 import Joi from "joi"
 import { db } from "./db.js"
-import {
-	HttpError,
-	asyncHandler,
-	createErrorResponse,
-	errorHandler,
-} from "./errors.js"
+import { HttpError, asyncHandler, createErrorResponse, errorHandler } from "./errors.js"
 import { translateJapanese } from "./services/translate.js"
 
 const scrypt = promisify(scryptCallback)
@@ -24,6 +19,21 @@ async function hashPassword(password) {
 	const derivedKey = await scrypt(password, salt, 64)
 
 	return `scrypt:${salt}:${derivedKey.toString("hex")}`
+}
+
+async function verifyPassword(password, passwordHash) {
+	const [algorithm, salt, key] = String(passwordHash || "").split(":")
+
+	if (algorithm !== "scrypt" || !salt || !key) return false
+
+	const storedKey = Buffer.from(key, "hex")
+	if (!storedKey.length || storedKey.length * 2 !== key.length) return false
+
+	const derivedKey = await scrypt(password, salt, storedKey.length)
+
+	if (storedKey.length !== derivedKey.length) return false
+
+	return timingSafeEqual(storedKey, derivedKey)
 }
 
 const userSchema = Joi.object({
@@ -79,6 +89,35 @@ const userParamsSchema = Joi.object({
 	}),
 })
 
+const loginSchema = Joi.object({
+	email: Joi.string()
+		.trim()
+		.lowercase()
+		.email()
+		.max(254)
+		.messages({
+			"string.email": "Must be a valid email",
+			"string.max": "Email must be at most 254 characters",
+			"string.empty": "Email is required",
+			"any.required": "Email is required",
+		})
+		.required(),
+	password: Joi.string()
+		.min(1)
+		.max(128)
+		.messages({
+			"string.min": "Password is required",
+			"string.max": "Password must be at most 128 characters",
+			"string.empty": "Password is required",
+			"any.required": "Password is required",
+		})
+		.required(),
+})
+	.required()
+	.messages({
+		"object.unknown": "{#label} is not allowed",
+	})
+
 const translateSchema = Joi.object({
 	text: Joi.string().trim().min(1).max(1000).required().messages({
 		"string.min": "Text is required",
@@ -104,71 +143,118 @@ app.get(`${root}/health`, (req, res) => {
 	})
 })
 
-app.post(`${root}/users/`, asyncHandler(async (req, res) => {
-	const { error, value } = userSchema.validate(req.body, validationOptions)
+app.post(
+	`${root}/users/`,
+	asyncHandler(async (req, res) => {
+		const { error, value } = userSchema.validate(req.body, validationOptions)
 
-	if (error) {
-		res.status(400).send(validationErrorResponse(error))
-		return
-	}
+		if (error) {
+			res.status(400).send(validationErrorResponse(error))
+			return
+		}
 
-	const { email, displayName, password } = value
-	const passwordHash = await hashPassword(password)
-	const result = await db.query(
-		`
+		const { email, displayName, password } = value
+		const passwordHash = await hashPassword(password)
+		const result = await db.query(
+			`
 			INSERT INTO users (email, display_name, password_hash)
 			VALUES ($1, $2, $3)
 			RETURNING id, email, display_name AS "displayName", created_at AS "createdAt", updated_at AS "updatedAt"
 		`,
-		[email, displayName, passwordHash],
-	)
+			[email, displayName, passwordHash],
+		)
 
-	res.status(201).send({
-		message: "User successfully created!",
-		user: result.rows[0],
-	})
-}))
+		res.status(201).send({
+			message: "User successfully created!",
+			user: result.rows[0],
+		})
+	}),
+)
 
-app.get(`${root}/users/:user_id`, asyncHandler(async (req, res) => {
-	const { error, value } = userParamsSchema.validate(req.params, validationOptions)
+app.get(
+	`${root}/users/:user_id`,
+	asyncHandler(async (req, res) => {
+		const { error, value } = userParamsSchema.validate(req.params, validationOptions)
 
-	if (error) {
-		res.status(400).send(validationErrorResponse(error))
-		return
-	}
+		if (error) {
+			res.status(400).send(validationErrorResponse(error))
+			return
+		}
 
-	const result = await db.query(
-		`
+		const result = await db.query(
+			`
 			SELECT id, email, display_name AS "displayName", created_at AS "createdAt", updated_at AS "updatedAt"
 			FROM users
 			WHERE id = $1
 		`,
-		[value.user_id],
-	)
+			[value.user_id],
+		)
 
-	if (result.rowCount === 0) {
-		throw new HttpError(404, "User not found.")
-	}
+		if (result.rowCount === 0) {
+			throw new HttpError(404, "User not found.")
+		}
 
-	res.status(200).send({
-		user: result.rows[0],
-	})
-}))
+		res.status(200).send({
+			user: result.rows[0],
+		})
+	}),
+)
 
-app.post(`${root}/translate`, asyncHandler(async (req, res) => {
-	const { error, value } = translateSchema.validate(req.body, validationOptions)
+app.post(
+	`${root}/login`,
+	asyncHandler(async (req, res) => {
+		const { error, value } = loginSchema.validate(req.body, validationOptions)
 
-	if (error) {
-		res.status(400).send(validationErrorResponse(error))
-		return
-	}
+		if (error) {
+			res.status(400).send(validationErrorResponse(error))
+			return
+		}
 
-	const translation = await translateJapanese(value.text)
+		const result = await db.query(
+			`
+			SELECT id, email, display_name AS "displayName", password_hash AS "passwordHash",
+				created_at AS "createdAt", updated_at AS "updatedAt"
+			FROM users
+			WHERE email = $1
+		`,
+			[value.email],
+		)
 
-	res.status(200).send({
-		translation,
-	})
-}))
+		if (result.rowCount === 0) {
+			throw new HttpError(401, "Invalid email or password.")
+		}
+
+		const { passwordHash, ...user } = result.rows[0]
+		const passwordMatches = await verifyPassword(value.password, passwordHash)
+
+		if (!passwordMatches) {
+			throw new HttpError(401, "Invalid email or password.")
+		}
+
+		res.status(200).send({
+			message: "Login successful.",
+			user,
+		})
+	}),
+)
+
+app.post(
+	`${root}/translate`,
+	asyncHandler(async (req, res) => {
+		const { error, value } = translateSchema.validate(req.body, validationOptions)
+
+		if (error) {
+			res.status(400).send(validationErrorResponse(error))
+			return
+		}
+
+		const translation = await translateJapanese(value.text)
+
+		res.status(200).send({
+			translation,
+		})
+	}),
+)
 
 app.use(errorHandler)
 

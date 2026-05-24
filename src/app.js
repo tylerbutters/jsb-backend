@@ -283,6 +283,35 @@ app.patch(
 	}),
 )
 
+app.delete(
+	`${root}/users/:user_id`,
+	asyncHandler(async (req, res) => {
+		const { error, value } = userParamsSchema.validate(req.params, validationOptions)
+
+		if (error) {
+			res.status(400).send(validationErrorResponse(error))
+			return
+		}
+
+		const result = await db.query(
+			`
+			DELETE FROM users
+			WHERE id = $1
+			RETURNING id
+		`,
+			[value.user_id],
+		)
+
+		if (result.rowCount === 0) {
+			throw new HttpError(404, "User not found.")
+		}
+
+		res.status(200).send({
+			message: "Account deleted.",
+		})
+	}),
+)
+
 app.post(
 	`${root}/login`,
 	asyncHandler(async (req, res) => {

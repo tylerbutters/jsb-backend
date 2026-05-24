@@ -4,6 +4,7 @@ import express from "express"
 import Joi from "joi"
 import { db } from "./db.js"
 import { HttpError, asyncHandler, createErrorResponse, errorHandler } from "./errors.js"
+import { checkJapaneseTranslation, generateBasicEnglishSentence } from "./services/sentences.js"
 import { translateJapanese } from "./services/translate.js"
 
 const scrypt = promisify(scryptCallback)
@@ -119,25 +120,16 @@ const loginSchema = Joi.object({
 	})
 
 const updateUserSchema = Joi.object({
-	email: Joi.string()
-		.trim()
-		.lowercase()
-		.email()
-		.max(254)
-		.messages({
-			"string.email": "Must be a valid email",
-			"string.max": "Email must be at most 254 characters",
-			"string.empty": "Email is required",
-		}),
-	displayName: Joi.string()
-		.trim()
-		.min(1)
-		.max(80)
-		.messages({
-			"string.min": "Display name is required",
-			"string.max": "Display name must be at most 80 characters",
-			"string.empty": "Display name is required",
-		}),
+	email: Joi.string().trim().lowercase().email().max(254).messages({
+		"string.email": "Must be a valid email",
+		"string.max": "Email must be at most 254 characters",
+		"string.empty": "Email is required",
+	}),
+	displayName: Joi.string().trim().min(1).max(80).messages({
+		"string.min": "Display name is required",
+		"string.max": "Display name must be at most 80 characters",
+		"string.empty": "Display name is required",
+	}),
 	password: Joi.string()
 		.min(8)
 		.max(128)
@@ -163,6 +155,37 @@ const translateSchema = Joi.object({
 		"string.max": "Text must be at most 1000 characters",
 		"string.empty": "Text is required",
 		"any.required": "Text is required",
+	}),
+})
+	.required()
+	.messages({
+		"object.unknown": "{#label} is not allowed",
+	})
+
+const basicEnglishSentenceSchema = Joi.object({
+	topic: Joi.string().trim().min(1).max(120).messages({
+		"string.min": "Topic is required",
+		"string.max": "Topic must be at most 120 characters",
+		"string.empty": "Topic is required",
+	}),
+})
+	.required()
+	.messages({
+		"object.unknown": "{#label} is not allowed",
+	})
+
+const checkTranslateGameSchema = Joi.object({
+	englishSentence: Joi.string().trim().min(1).max(300).required().messages({
+		"string.min": "English sentence is required",
+		"string.max": "English sentence must be at most 300 characters",
+		"string.empty": "English sentence is required",
+		"any.required": "English sentence is required",
+	}),
+	japaneseSentence: Joi.string().trim().min(1).max(300).required().messages({
+		"string.min": "Japanese sentence is required",
+		"string.max": "Japanese sentence must be at most 300 characters",
+		"string.empty": "Japanese sentence is required",
+		"any.required": "Japanese sentence is required",
 	}),
 })
 	.required()
@@ -350,17 +373,61 @@ app.post(
 	}),
 )
 
-app.post(
-	`${root}/translate`,
+app.get(
+	`${root}/games/translate/prompt`,
 	asyncHandler(async (req, res) => {
-		const { error, value } = translateSchema.validate(req.body, validationOptions)
+		const sentence = await generateBasicEnglishSentence()
+
+		res.status(200).json({
+			sentence,
+		})
+	}),
+)
+
+app.post(
+	`${root}/games/translate/check`,
+	asyncHandler(async (req, res) => {
+		const { error, value } = checkTranslateGameSchema.validate(req.body, validationOptions)
 
 		if (error) {
 			res.status(400).send(validationErrorResponse(error))
 			return
 		}
 
-		const translation = await translateJapanese(value.text)
+		const result = await checkJapaneseTranslation(value)
+
+		res.status(200).send(result)
+	}),
+)
+
+function handleTranslateRequest(req, res) {
+	const { error, value } = translateSchema.validate(req.body, validationOptions)
+
+	if (error) {
+		res.status(400).send(validationErrorResponse(error))
+		return null
+	}
+
+	return translateJapanese(value.text)
+}
+
+app.post(
+	`${root}/translate`,
+	asyncHandler(async (req, res) => {
+		const translation = await handleTranslateRequest(req, res)
+		if (translation === null) return
+
+		res.status(200).send({
+			translation,
+		})
+	}),
+)
+
+app.post(
+	`${root}/games/translate`,
+	asyncHandler(async (req, res) => {
+		const translation = await handleTranslateRequest(req, res)
+		if (translation === null) return
 
 		res.status(200).send({
 			translation,

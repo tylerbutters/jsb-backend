@@ -222,7 +222,6 @@ describe("validateConjugationPrompt", () => {
 describe("generateGamePrompt", () => {
 	it("uses local generation for all prompt game modes", async () => {
 		for (const mode of [
-			"shuffle",
 			"translate",
 			"conjugations",
 			"fix sentence",

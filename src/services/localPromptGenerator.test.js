@@ -24,7 +24,7 @@ describe("generateLocalGamePrompt", () => {
 	})
 
 	it("generates local prompts for each structured game mode", () => {
-		for (const mode of ["shuffle", "fix sentence", "particles", "reorder"]) {
+		for (const mode of ["fix sentence", "particles", "reorder"]) {
 			const prompt = generateLocalGamePrompt({
 				mode,
 				difficulty: "medium",
@@ -99,5 +99,6 @@ describe("generateLocalGamePrompt", () => {
 
 	it("returns null for modes without a local generator", () => {
 		assert.equal(generateLocalGamePrompt({ mode: "sandbox" }), null)
+		assert.equal(generateLocalGamePrompt({ mode: "shuffle" }), null)
 	})
 })

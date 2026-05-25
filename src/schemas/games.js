@@ -5,14 +5,14 @@ const difficultySchema = Joi.string().valid("easy", "medium", "hard").default("e
 	"any.only": "Difficulty must be easy, medium, or hard",
 })
 
-const gameModeSchema = Joi.string()
+const gameModeValueSchema = Joi.string()
 	.valid(...GAME_MODES)
-	.required()
 	.messages({
 		"any.only": "Game mode is not supported",
 		"any.required": "Game mode is required",
 		"string.empty": "Game mode is required",
 	})
+const gameModeSchema = gameModeValueSchema.required()
 
 export const translateSchema = Joi.object({
 	text: Joi.string().trim().min(1).max(1000).required().messages({

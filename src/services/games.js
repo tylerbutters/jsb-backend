@@ -7,11 +7,6 @@ import {
 import { checkJapaneseGameAnswer } from "./sentences.js"
 
 const gameCheckInstructions = {
-	shuffle: [
-		"The prompt gives an English target meaning and shuffled Japanese chunks.",
-		"The answer is the learner's assembled Japanese sentence.",
-		"Mark correct when the answer is natural Japanese and communicates the target meaning.",
-	].join(" "),
 	translate: [
 		"The prompt is an English sentence.",
 		"The answer is the learner's Japanese sentence.",

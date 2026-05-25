@@ -38,6 +38,50 @@ describe("generateLocalGamePrompt", () => {
 		}
 	})
 
+	it("generates particle prompts with sentence elements and missing particles", () => {
+		for (const difficulty of ["easy", "medium", "hard"]) {
+			for (const randomValue of [FIRST_RANDOM_VALUE, LAST_RANDOM_VALUE]) {
+				const prompt = generateLocalGamePrompt({
+					mode: "particles",
+					difficulty,
+					random: () => randomValue,
+				})
+
+				assert.equal(Array.isArray(prompt.japaneseTranslation), true)
+				assert.notEqual(prompt.japaneseTranslation.length, 0)
+				assert.equal(
+					prompt.japaneseTranslation.some((wordData) => Object.hasOwn(wordData, "particle")),
+					false,
+				)
+			}
+		}
+
+		assert.deepEqual(
+			generateLocalGamePrompt({
+				mode: "particles",
+				difficulty: "easy",
+				random: () => FIRST_RANDOM_VALUE,
+			}),
+			{
+				prompt: "I eat sushi.",
+				source: "local",
+				templateId: "particle_object",
+				purpose: "core_case_particle",
+				profile: {
+					vocabLevel: "easy",
+					sentenceComplexity: "simple",
+					particleLevel: "easy",
+					purpose: "choose_core_case_particle",
+				},
+				japaneseTranslation: [
+					{ kanji: "私", kana: "わたし" },
+					{ kanji: "寿司", kana: "すし" },
+					{ kanji: "食べる", kana: "たべる" },
+				],
+			},
+		)
+	})
+
 	it("keeps conjugation hard prompts focused on hard conjugation with easy vocab", () => {
 		const prompt = generateLocalGamePrompt({
 			mode: "conjugations",

@@ -4,6 +4,9 @@ const WORDS = {
 	she: { kanji: "彼女", kana: "かのじょ" },
 	teacher: { kanji: "先生", kana: "せんせい" },
 	school: { kanji: "学校", kana: "がっこう" },
+	library: { kanji: "図書館", kana: "としょかん" },
+	home: { kanji: "家", kana: "いえ" },
+	rain: { kanji: "雨", kana: "あめ" },
 	book: { kanji: "本", kana: "ほん" },
 	sushi: { kanji: "寿司", kana: "すし" },
 	water: { kanji: "水", kana: "みず" },
@@ -15,6 +18,7 @@ const WORDS = {
 	buy: { kanji: "買う", kana: "かう" },
 	study: { kanji: "勉強する", kana: "べんきょうする" },
 	praise: { kanji: "褒める", kana: "ほめる" },
+	fall: { kanji: "降る", kana: "ふる" },
 }
 
 export function word(key, particle) {
@@ -24,8 +28,8 @@ export function word(key, particle) {
 	return particle ? { ...baseWord, particle } : { ...baseWord }
 }
 
-export function promptCase(id, purpose, prompt) {
-	return { id, purpose, prompt }
+export function promptCase(id, purpose, prompt, data = {}) {
+	return { id, purpose, prompt, ...data }
 }
 
 export function conjugationCase(targetConjugation, prompt, japaneseTranslation) {

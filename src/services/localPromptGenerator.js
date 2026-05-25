@@ -123,12 +123,13 @@ function generatePromptCase({ mode, difficulty, random }) {
 	const casesByDifficulty = LOCAL_PROMPT_CASES_BY_MODE[mode]
 	const promptCases = casesByDifficulty[difficulty] || casesByDifficulty.easy
 	const selectedPromptCase = pick(promptCases, random)
+	const { id, purpose, ...promptData } = selectedPromptCase
 
 	return {
-		prompt: selectedPromptCase.prompt,
+		...promptData,
 		source: "local",
-		templateId: selectedPromptCase.id,
-		purpose: selectedPromptCase.purpose || profile.purpose,
+		templateId: id,
+		purpose: purpose || profile.purpose,
 		profile,
 	}
 }

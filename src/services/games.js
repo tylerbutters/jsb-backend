@@ -24,9 +24,9 @@ const gameCheckInstructions = {
 		"Mark correct when the mistake is fixed and the answer naturally matches the target meaning.",
 	].join(" "),
 	particles: [
-		"The prompt asks for the missing Japanese particle.",
-		"The answer may be only the particle or a full Japanese sentence using it.",
-		"Mark correct when the selected particle fits the sentence and intended meaning.",
+		"The prompt is an English target meaning for a Japanese sentence with missing particles.",
+		"The answer is the learner's completed Japanese sentence.",
+		"Mark correct when the sentence naturally communicates the target meaning and uses fitting particles.",
 	].join(" "),
 	reorder: [
 		"The prompt gives an English target meaning and unordered Japanese chunks.",

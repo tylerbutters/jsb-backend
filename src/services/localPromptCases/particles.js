@@ -1,40 +1,58 @@
-import { promptCase } from "./helpers.js"
+import { promptCase, word } from "./helpers.js"
 
 export const particlePromptCases = {
 	easy: [
 		promptCase(
 			"particle_object",
 			"core_case_particle",
-			"Japanese: 私は寿司[blank]食べる。 Hint: I eat sushi.",
+			"I eat sushi.",
+			{
+				japaneseTranslation: [word("i"), word("sushi"), word("eat")],
+			},
 		),
 		promptCase(
 			"particle_destination",
 			"core_case_particle",
-			"Japanese: 彼女は学校[blank]行く。 Hint: She goes to school.",
+			"She goes to school.",
+			{
+				japaneseTranslation: [word("she"), word("school"), word("go")],
+			},
 		),
 	],
 	medium: [
 		promptCase(
 			"particle_location",
 			"context_particle",
-			"Japanese: 彼は図書館[blank]日本語を勉強した。 Hint: He studied Japanese at the library.",
+			"He studied Japanese at the library.",
+			{
+				japaneseTranslation: [word("he"), word("library"), word("japanese"), word("study")],
+			},
 		),
 		promptCase(
 			"particle_agent",
 			"context_particle",
-			"Japanese: 彼は先生[blank]褒められた。 Hint: He was praised by the teacher.",
+			"He was praised by the teacher.",
+			{
+				japaneseTranslation: [word("he"), word("teacher"), word("praise")],
+			},
 		),
 	],
 	hard: [
 		promptCase(
 			"particle_reason_subject",
 			"clause_particle",
-			"Japanese: 雨[blank]降っていたから、私は家で勉強した。 Hint: Because it was raining, I studied at home.",
+			"Because it was raining, I studied at home.",
+			{
+				japaneseTranslation: [word("rain"), word("fall"), word("i"), word("home"), word("study")],
+			},
 		),
 		promptCase(
 			"particle_causative_passive_agent",
 			"clause_particle",
-			"Japanese: 彼女は先生[blank]学校に行かされた。 Hint: She was made to go to school by the teacher.",
+			"She was made to go to school by the teacher.",
+			{
+				japaneseTranslation: [word("she"), word("teacher"), word("school"), word("go")],
+			},
 		),
 	],
 }

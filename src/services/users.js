@@ -6,6 +6,12 @@ const publicUserFields = `
 	id, email, display_name AS "displayName", created_at AS "createdAt", updated_at AS "updatedAt"
 `
 
+function createUserNotFoundError() {
+	return new HttpError(404, "User not found.", {
+		code: "USER_NOT_FOUND",
+	})
+}
+
 export async function createUser({ email, displayName, password }) {
 	const passwordHash = await hashPassword(password)
 	const result = await db.query(
@@ -31,7 +37,7 @@ export async function getUserById(userId) {
 	)
 
 	if (result.rowCount === 0) {
-		throw new HttpError(404, "User not found.")
+		throw createUserNotFoundError()
 	}
 
 	return result.rows[0]
@@ -52,7 +58,7 @@ export async function updateUser(userId, { email, displayName, password }) {
 	)
 
 	if (result.rowCount === 0) {
-		throw new HttpError(404, "User not found.")
+		throw createUserNotFoundError()
 	}
 
 	return result.rows[0]
@@ -69,7 +75,7 @@ export async function deleteUser(userId) {
 	)
 
 	if (result.rowCount === 0) {
-		throw new HttpError(404, "User not found.")
+		throw createUserNotFoundError()
 	}
 }
 

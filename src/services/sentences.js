@@ -8,12 +8,33 @@ const openai = new OpenAI({
 
 async function createResponse(payload) {
 	if (!process.env.OPENAI_API_KEY) {
-		throw new HttpError(500, "OpenAI API key is not configured.")
+		throw new HttpError(503, "AI service is not configured.", {
+			code: "AI_SERVICE_NOT_CONFIGURED",
+			logMessage: "OPENAI_API_KEY is not configured.",
+		})
 	}
 
-	return openai.responses.create({
-		model: "gpt-4.1-nano",
-		...payload,
+	try {
+		return await openai.responses.create({
+			model: "gpt-4.1-nano",
+			...payload,
+		})
+	} catch (error) {
+		throw normalizeOpenAIError(error)
+	}
+}
+
+function normalizeOpenAIError(error) {
+	const status = error?.status
+	const message =
+		status === 429 ? "AI service is rate limited right now." : "AI service is unavailable right now."
+	const responseStatus =
+		status === 408 || status === 504 ? 504 : status === 429 || status >= 500 ? 503 : 502
+
+	return new HttpError(responseStatus, message, {
+		code: "AI_SERVICE_ERROR",
+		cause: error,
+		logMessage: `OpenAI request failed${status ? ` with ${status}` : ""}: ${error.message}`,
 	})
 }
 
@@ -55,15 +76,21 @@ export async function generateEnglishSentence(difficulty = "easy") {
 		const sentence = String(response.output_text || "").trim()
 
 		if (!sentence) {
-			console.log("Full OpenAI response:", JSON.stringify(response, null, 2))
-			throw new Error("OpenAI returned an empty sentence.")
+			throw new HttpError(502, "AI service returned an empty sentence.", {
+				code: "AI_EMPTY_RESPONSE",
+				logMessage: `OpenAI returned an empty sentence: ${JSON.stringify(response)}`,
+			})
 		}
 
 		return sentence
 	} catch (error) {
-		console.error("generateEnglishSentence failed:")
-		console.error(error)
-		throw error
+		if (error instanceof HttpError) throw error
+
+		throw new HttpError(503, "AI service is unavailable right now.", {
+			code: "AI_SERVICE_ERROR",
+			cause: error,
+			logMessage: `generateEnglishSentence failed: ${error.message}`,
+		})
 	}
 }
 
@@ -95,7 +122,9 @@ export async function checkJapaneseTranslation({ englishSentence, japaneseSenten
 			feedback: String(result.feedback || "").trim(),
 		}
 	} catch {
-		console.log("Invalid JSON from OpenAI:", rawText)
-		throw new Error("OpenAI returned invalid translation feedback.")
+		throw new HttpError(502, "AI service returned invalid translation feedback.", {
+			code: "AI_INVALID_RESPONSE",
+			logMessage: `Invalid JSON from OpenAI: ${rawText}`,
+		})
 	}
 }

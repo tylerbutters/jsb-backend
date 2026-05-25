@@ -1,6 +1,6 @@
 import express from "express"
 import cors from "cors"
-import { errorHandler } from "./errors.js"
+import { HttpError, errorHandler } from "./errors.js"
 import authRouter from "./routes/auth.js"
 import gamesRouter from "./routes/games.js"
 import healthRouter from "./routes/health.js"
@@ -19,7 +19,11 @@ app.use(
 				return
 			}
 
-			callback(new Error("Not allowed by CORS"))
+			callback(
+				new HttpError(403, "Origin is not allowed by CORS.", {
+					code: "CORS_ORIGIN_NOT_ALLOWED",
+				}),
+			)
 		},
 	}),
 )

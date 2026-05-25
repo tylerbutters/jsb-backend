@@ -7,6 +7,12 @@ import { getUserByEmailWithPassword } from "../services/users.js"
 
 const router = Router()
 
+function createInvalidCredentialsError() {
+	return new HttpError(401, "Invalid email or password.", {
+		code: "INVALID_CREDENTIALS",
+	})
+}
+
 router.post(
 	"/",
 	validateBody(loginSchema),
@@ -15,14 +21,14 @@ router.post(
 		const userWithPassword = await getUserByEmailWithPassword(email)
 
 		if (!userWithPassword) {
-			throw new HttpError(401, "Invalid email or password.")
+			throw createInvalidCredentialsError()
 		}
 
 		const { passwordHash, ...user } = userWithPassword
 		const passwordMatches = await verifyPassword(password, passwordHash)
 
 		if (!passwordMatches) {
-			throw new HttpError(401, "Invalid email or password.")
+			throw createInvalidCredentialsError()
 		}
 
 		res.status(200).send({

@@ -82,6 +82,38 @@ describe("generateLocalGamePrompt", () => {
 		)
 	})
 
+	it("generates reorder prompts with English text and scrambled sentence elements", () => {
+		const prompt = generateLocalGamePrompt({
+			mode: "reorder",
+			difficulty: "easy",
+			random: () => FIRST_RANDOM_VALUE,
+		})
+
+		assert.equal(prompt.prompt, "She reads a book.")
+		assert.equal(prompt.prompt.includes("English:"), false)
+		assert.equal(prompt.prompt.includes("Chunks:"), false)
+		assert.deepEqual(prompt.japaneseTranslation, [
+			{ kanji: "本", kana: "ほん", particle: "を" },
+			{ kanji: "読む", kana: "よむ" },
+			{ kanji: "彼女", kana: "かのじょ", particle: "は" },
+		])
+
+		for (const difficulty of ["easy", "medium", "hard"]) {
+			for (const randomValue of [FIRST_RANDOM_VALUE, LAST_RANDOM_VALUE]) {
+				const nextPrompt = generateLocalGamePrompt({
+					mode: "reorder",
+					difficulty,
+					random: () => randomValue,
+				})
+
+				assert.equal(Array.isArray(nextPrompt.japaneseTranslation), true)
+				assert.notEqual(nextPrompt.japaneseTranslation.length, 0)
+				assert.equal(nextPrompt.prompt.includes("English:"), false)
+				assert.equal(nextPrompt.prompt.includes("Chunks:"), false)
+			}
+		}
+	})
+
 	it("keeps conjugation hard prompts focused on hard conjugation with easy vocab", () => {
 		const prompt = generateLocalGamePrompt({
 			mode: "conjugations",

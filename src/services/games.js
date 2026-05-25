@@ -29,9 +29,10 @@ const gameCheckInstructions = {
 		"Mark correct when the sentence naturally communicates the target meaning and uses fitting particles.",
 	].join(" "),
 	reorder: [
-		"The prompt gives an English target meaning and unordered Japanese chunks.",
+		"The prompt is an English target meaning.",
+		"The learner was given the Japanese sentence elements in the wrong order.",
 		"The answer is the learner's reordered Japanese sentence.",
-		"Mark correct when the chunks are ordered into natural Japanese that matches the target meaning.",
+		"Mark correct when the answer is natural Japanese and matches the target meaning.",
 	].join(" "),
 }
 

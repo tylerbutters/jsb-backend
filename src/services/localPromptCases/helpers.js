@@ -4,6 +4,7 @@ const WORDS = {
 	she: { kanji: "彼女", kana: "かのじょ" },
 	teacher: { kanji: "先生", kana: "せんせい" },
 	school: { kanji: "学校", kana: "がっこう" },
+	station: { kanji: "駅", kana: "えき" },
 	library: { kanji: "図書館", kana: "としょかん" },
 	home: { kanji: "家", kana: "いえ" },
 	rain: { kanji: "雨", kana: "あめ" },

@@ -49,10 +49,6 @@ router.post(
 	asyncHandler(sendJapaneseTranslation),
 )
 
-router.post(
-	"/translate",
-	validateBody(translateSchema),
-	asyncHandler(sendJapaneseTranslation),
-)
+router.post("/translate", validateBody(translateSchema), asyncHandler(sendJapaneseTranslation))
 
 export default router

@@ -13,6 +13,7 @@
 		"test": "node --test"
 	},
 	"dependencies": {
+		"cors": "^2.8.6",
 		"express": "^5.2.1",
 		"joi": "^18.2.1",
 		"openai": "^6.39.0",

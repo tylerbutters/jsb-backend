@@ -17,12 +17,39 @@ async function createResponse(payload) {
 	})
 }
 
-export async function generateBasicEnglishSentence() {
+const ENGLISH_SENTENCE_DIFFICULTY_PROMPTS = {
+	easy: [
+		"Use beginner vocabulary and one simple clause.",
+		"Use present or simple past tense.",
+		"Keep it around 3 to 6 words.",
+		"Example style: I eat rice.",
+	].join(" "),
+	medium: [
+		"Use common vocabulary with a little detail such as time, place, or an object.",
+		"Use one main clause and avoid idioms.",
+		"Keep it around 6 to 10 words.",
+		"Example style: I watched a movie at home yesterday.",
+	].join(" "),
+	hard: [
+		"Use a natural sentence with more detail, such as a reason, contrast, or sequence.",
+		"Use vocabulary suitable for an intermediate learner, but avoid obscure idioms.",
+		"Keep it around 10 to 16 words.",
+		"Example style: Because it was raining, I studied Japanese at the library.",
+	].join(" "),
+}
+
+export async function generateEnglishSentence(difficulty = "easy") {
+	const difficultyPrompt =
+		ENGLISH_SENTENCE_DIFFICULTY_PROMPTS[difficulty] || ENGLISH_SENTENCE_DIFFICULTY_PROMPTS.easy
+
 	try {
 		const response = await createResponse({
-			instructions:
-				"Generate exactly one short, basic English sentence for a beginner language learner. Return only the sentence.",
-			input: "Write a basic English sentence.",
+			instructions: [
+				"Generate exactly one English sentence for a Japanese language learner to translate.",
+				difficultyPrompt,
+				"Return only the sentence.",
+			].join(" "),
+			input: `Write one ${difficulty} English sentence.`,
 		})
 
 		const sentence = String(response.output_text || "").trim()
@@ -34,7 +61,7 @@ export async function generateBasicEnglishSentence() {
 
 		return sentence
 	} catch (error) {
-		console.error("generateBasicEnglishSentence failed:")
+		console.error("generateEnglishSentence failed:")
 		console.error(error)
 		throw error
 	}

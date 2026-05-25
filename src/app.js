@@ -4,7 +4,7 @@ import express from "express"
 import Joi from "joi"
 import { db } from "./db.js"
 import { HttpError, asyncHandler, createErrorResponse, errorHandler } from "./errors.js"
-import { checkJapaneseTranslation, generateBasicEnglishSentence } from "./services/sentences.js"
+import { checkJapaneseTranslation, generateEnglishSentence } from "./services/sentences.js"
 import { translateJapanese } from "./services/translate.js"
 
 const scrypt = promisify(scryptCallback)
@@ -162,11 +162,9 @@ const translateSchema = Joi.object({
 		"object.unknown": "{#label} is not allowed",
 	})
 
-const basicEnglishSentenceSchema = Joi.object({
-	topic: Joi.string().trim().min(1).max(120).messages({
-		"string.min": "Topic is required",
-		"string.max": "Topic must be at most 120 characters",
-		"string.empty": "Topic is required",
+const translatePromptQuerySchema = Joi.object({
+	difficulty: Joi.string().valid("easy", "medium", "hard").default("easy").messages({
+		"any.only": "Difficulty must be easy, medium, or hard",
 	}),
 })
 	.required()
@@ -376,10 +374,18 @@ app.post(
 app.get(
 	`${root}/games/translate/prompt`,
 	asyncHandler(async (req, res) => {
-		const sentence = await generateBasicEnglishSentence()
+		const { error, value } = translatePromptQuerySchema.validate(req.query, validationOptions)
+
+		if (error) {
+			res.status(400).send(validationErrorResponse(error))
+			return
+		}
+
+		const sentence = await generateEnglishSentence(value.difficulty)
 
 		res.status(200).json({
 			sentence,
+			difficulty: value.difficulty,
 		})
 	}),
 )
@@ -412,7 +418,7 @@ function handleTranslateRequest(req, res) {
 }
 
 app.post(
-	`${root}/translate`,
+	`${root}/games/sandbox/translate-japanese`,
 	asyncHandler(async (req, res) => {
 		const translation = await handleTranslateRequest(req, res)
 		if (translation === null) return

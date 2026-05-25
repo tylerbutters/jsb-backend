@@ -3,6 +3,7 @@ import { GAME_MODES } from "../gameModes.js"
 import {
 	checkJapaneseGameAnswer,
 	generateEnglishSentence,
+	generateJsonLearningPrompt,
 	generateLearningPrompt,
 } from "./sentences.js"
 
@@ -35,17 +36,11 @@ const gameSpecs = {
 	},
 	conjugations: {
 		title: "conjugation practice",
-		promptInstructions: [
-			"Generate exactly one Japanese conjugation practice prompt.",
-			"Include a dictionary-form verb or adjective, the requested form, and a short English context.",
-			"Do not include the answer.",
-			"Return only the prompt text.",
-		],
-		input: (difficulty) => `Write one ${difficulty} conjugation practice prompt.`,
+		generatePrompt: generateConjugationPrompt,
 		checkInstructions: [
-			"The prompt asks for a Japanese conjugated form or a sentence using that form.",
-			"The answer may be only the conjugated word or a full Japanese sentence.",
-			"Mark correct when the requested conjugation is correct for the prompt.",
+			"The prompt is an English sentence that requires a specific Japanese verb or adjective conjugation.",
+			"The answer is the learner's Japanese sentence.",
+			"Mark correct when the Japanese sentence naturally communicates the English sentence and uses the required conjugation.",
 		].join(" "),
 	},
 	"fix sentence": {
@@ -94,6 +89,106 @@ const gameSpecs = {
 			"Mark correct when the chunks are ordered into natural Japanese that matches the target meaning.",
 		].join(" "),
 	},
+}
+
+const ATTACHED_PARTICLES = new Set([
+	"から",
+	"は",
+	"も",
+	"が",
+	"を",
+	"に",
+	"へ",
+	"で",
+	"と",
+	"こそ",
+	"さえ",
+	"しか",
+	"ばかり",
+	"だけ",
+	"のみ",
+	"の",
+	"な",
+])
+
+function normalizeJapaneseTranslationWords(words) {
+	if (!Array.isArray(words)) return []
+
+	return words
+		.map((word) => {
+			const normalizedWord = {
+				kanji: String(word?.kanji || "").trim(),
+				kana: String(word?.kana || "").trim(),
+			}
+			const particle = String(word?.particle || "").trim()
+
+			if (particle) normalizedWord.particle = particle
+
+			return normalizedWord
+		})
+		.filter((word) => word.kanji && word.kana)
+}
+
+function hasStandaloneAttachedParticle(words) {
+	return words.some(
+		(word) => word.kanji === word.kana && ATTACHED_PARTICLES.has(word.kanji) && !word.particle,
+	)
+}
+
+export function validateConjugationPrompt(data) {
+	const prompt = String(data?.prompt || "").trim()
+	const englishSentence = String(data?.englishSentence || "").trim()
+	const japaneseTranslation = normalizeJapaneseTranslationWords(data?.japaneseTranslation)
+
+	if (
+		!prompt ||
+		!englishSentence ||
+		prompt !== englishSentence ||
+		japaneseTranslation.length === 0 ||
+		hasStandaloneAttachedParticle(japaneseTranslation)
+	) {
+		throw new HttpError(502, "AI service returned an invalid conjugation prompt.", {
+			code: "AI_INVALID_RESPONSE",
+			logMessage: `Invalid conjugation prompt from OpenAI: ${JSON.stringify(data)}`,
+		})
+	}
+
+	return {
+		prompt,
+		englishSentence,
+		japaneseTranslation,
+	}
+}
+
+async function generateConjugationPrompt({ difficulty }) {
+	const data = await generateJsonLearningPrompt({
+		difficulty,
+		instructions: (difficultyPrompt) => [
+			"Generate exactly one Japanese conjugation practice item.",
+			difficultyPrompt,
+			"Return only valid JSON.",
+			"Do not wrap the JSON in markdown.",
+			"The JSON must have these fields: prompt string, englishSentence string, japaneseTranslation array.",
+			"The prompt must be only a normal English sentence, not an instruction.",
+			"The englishSentence must be exactly the same value as prompt.",
+			"The English sentence must require one clear Japanese verb or adjective conjugation, such as wanted to, did not, could, must, wants to, was, or will.",
+			"The Japanese translation must be split into words or grammar chunks for building the sentence.",
+			"The japaneseTranslation items must be in natural Japanese sentence order.",
+			"Every japaneseTranslation item must have kanji string and kana string.",
+			"Japanese verbs and adjectives in japaneseTranslation must always be plain dictionary form without conjugation.",
+			"For example, if the English sentence means 'wanted to go', the Japanese verb item must be 行く/いく, not 行きたい, 行きたかった, or 行った.",
+			"If a particle attaches to a noun or pronoun, put it on that same item as particle string.",
+			"Never create separate japaneseTranslation items for particles such as は, が, を, に, へ, で, と, の, も, or から.",
+			"Bad example: [{\"kanji\":\"私\",\"kana\":\"わたし\"},{\"kanji\":\"は\",\"kana\":\"は\"},{\"kanji\":\"食べる\",\"kana\":\"たべる\"},{\"kanji\":\"を\",\"kana\":\"を\"},{\"kanji\":\"寿司\",\"kana\":\"すし\"}].",
+			"Good example: [{\"kanji\":\"私\",\"kana\":\"わたし\",\"particle\":\"は\"},{\"kanji\":\"寿司\",\"kana\":\"すし\",\"particle\":\"を\"},{\"kanji\":\"食べる\",\"kana\":\"たべる\"}].",
+			"For kana-only words, kanji and kana should be the same value.",
+		],
+		input: `Write one ${difficulty} English sentence that requires a Japanese conjugation, plus base-form Japanese word data.`,
+		emptyResponseMessage: "AI service returned an empty conjugation prompt.",
+		invalidResponseMessage: "AI service returned an invalid conjugation prompt.",
+	})
+
+	return validateConjugationPrompt(data)
 }
 
 function gameModeError(mode) {

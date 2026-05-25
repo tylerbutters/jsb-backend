@@ -24,12 +24,18 @@ router.get(
 	validateQuery(gamePromptQuerySchema),
 	asyncHandler(async (req, res) => {
 		const { mode, difficulty } = req.validated.query
-		const prompt = await generateGamePrompt({ mode, difficulty })
+		const promptResult = await generateGamePrompt({ mode, difficulty })
+		const promptData =
+			typeof promptResult === "string"
+				? {
+						prompt: promptResult,
+					}
+				: promptResult
 
 		res.status(200).json({
 			mode,
 			difficulty,
-			prompt,
+			...promptData,
 		})
 	}),
 )

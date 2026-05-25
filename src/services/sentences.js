@@ -101,6 +101,52 @@ export async function generateLearningPrompt({
 	}
 }
 
+export async function generateJsonLearningPrompt({
+	difficulty = "easy",
+	instructions,
+	input,
+	emptyResponseMessage = "AI service returned an empty prompt.",
+	invalidResponseMessage = "AI service returned an invalid prompt.",
+}) {
+	const resolvedInstructions =
+		typeof instructions === "function" ? instructions(difficultyInstructions(difficulty)) : instructions
+
+	try {
+		const response = await createResponse({
+			instructions: Array.isArray(resolvedInstructions)
+				? resolvedInstructions.join(" ")
+				: resolvedInstructions,
+			input,
+		})
+
+		const rawText = String(response.output_text || "").trim()
+
+		if (!rawText) {
+			throw new HttpError(502, emptyResponseMessage, {
+				code: "AI_EMPTY_RESPONSE",
+				logMessage: `OpenAI returned an empty JSON prompt: ${JSON.stringify(response)}`,
+			})
+		}
+
+		try {
+			return JSON.parse(rawText)
+		} catch {
+			throw new HttpError(502, invalidResponseMessage, {
+				code: "AI_INVALID_RESPONSE",
+				logMessage: `Invalid JSON from OpenAI: ${rawText}`,
+			})
+		}
+	} catch (error) {
+		if (error instanceof HttpError) throw error
+
+		throw new HttpError(503, "AI service is unavailable right now.", {
+			code: "AI_SERVICE_ERROR",
+			cause: error,
+			logMessage: `generateJsonLearningPrompt failed: ${error.message}`,
+		})
+	}
+}
+
 export async function generateEnglishSentence(difficulty = "easy") {
 	return generateLearningPrompt({
 		difficulty,

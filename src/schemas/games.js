@@ -1,4 +1,18 @@
 import Joi from "joi"
+import { GAME_MODES } from "../gameModes.js"
+
+const difficultySchema = Joi.string().valid("easy", "medium", "hard").default("easy").messages({
+	"any.only": "Difficulty must be easy, medium, or hard",
+})
+
+const gameModeSchema = Joi.string()
+	.valid(...GAME_MODES)
+	.required()
+	.messages({
+		"any.only": "Game mode is not supported",
+		"any.required": "Game mode is required",
+		"string.empty": "Game mode is required",
+	})
 
 export const translateSchema = Joi.object({
 	text: Joi.string().trim().min(1).max(1000).required().messages({
@@ -13,28 +27,28 @@ export const translateSchema = Joi.object({
 		"object.unknown": "{#label} is not allowed",
 	})
 
-export const translatePromptQuerySchema = Joi.object({
-	difficulty: Joi.string().valid("easy", "medium", "hard").default("easy").messages({
-		"any.only": "Difficulty must be easy, medium, or hard",
-	}),
+export const gamePromptQuerySchema = Joi.object({
+	mode: gameModeSchema,
+	difficulty: difficultySchema,
 })
 	.required()
 	.messages({
 		"object.unknown": "{#label} is not allowed",
 	})
 
-export const checkTranslateGameSchema = Joi.object({
-	englishSentence: Joi.string().trim().min(1).max(300).required().messages({
-		"string.min": "English sentence is required",
-		"string.max": "English sentence must be at most 300 characters",
-		"string.empty": "English sentence is required",
-		"any.required": "English sentence is required",
+export const gameCheckSchema = Joi.object({
+	mode: gameModeSchema,
+	prompt: Joi.string().trim().min(1).max(1000).required().messages({
+		"string.min": "Prompt is required",
+		"string.max": "Prompt must be at most 1000 characters",
+		"string.empty": "Prompt is required",
+		"any.required": "Prompt is required",
 	}),
-	japaneseSentence: Joi.string().trim().min(1).max(300).required().messages({
-		"string.min": "Japanese sentence is required",
-		"string.max": "Japanese sentence must be at most 300 characters",
-		"string.empty": "Japanese sentence is required",
-		"any.required": "Japanese sentence is required",
+	answer: Joi.string().trim().min(1).max(1000).required().messages({
+		"string.min": "Answer is required",
+		"string.max": "Answer must be at most 1000 characters",
+		"string.empty": "Answer is required",
+		"any.required": "Answer is required",
 	}),
 })
 	.required()

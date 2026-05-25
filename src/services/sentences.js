@@ -59,56 +59,80 @@ const ENGLISH_SENTENCE_DIFFICULTY_PROMPTS = {
 	].join(" "),
 }
 
-export async function generateEnglishSentence(difficulty = "easy") {
-	const difficultyPrompt =
-		ENGLISH_SENTENCE_DIFFICULTY_PROMPTS[difficulty] || ENGLISH_SENTENCE_DIFFICULTY_PROMPTS.easy
+function difficultyInstructions(difficulty = "easy") {
+	return ENGLISH_SENTENCE_DIFFICULTY_PROMPTS[difficulty] || ENGLISH_SENTENCE_DIFFICULTY_PROMPTS.easy
+}
+
+export async function generateLearningPrompt({
+	difficulty = "easy",
+	instructions,
+	input,
+	emptyResponseMessage = "AI service returned an empty prompt.",
+}) {
+	const resolvedInstructions =
+		typeof instructions === "function" ? instructions(difficultyInstructions(difficulty)) : instructions
 
 	try {
 		const response = await createResponse({
-			instructions: [
-				"Generate exactly one English sentence for a Japanese language learner to translate.",
-				difficultyPrompt,
-				"Return only the sentence.",
-			].join(" "),
-			input: `Write one ${difficulty} English sentence.`,
+			instructions: Array.isArray(resolvedInstructions)
+				? resolvedInstructions.join(" ")
+				: resolvedInstructions,
+			input,
 		})
 
-		const sentence = String(response.output_text || "").trim()
+		const prompt = String(response.output_text || "").trim()
 
-		if (!sentence) {
-			throw new HttpError(502, "AI service returned an empty sentence.", {
+		if (!prompt) {
+			throw new HttpError(502, emptyResponseMessage, {
 				code: "AI_EMPTY_RESPONSE",
-				logMessage: `OpenAI returned an empty sentence: ${JSON.stringify(response)}`,
+				logMessage: `OpenAI returned an empty prompt: ${JSON.stringify(response)}`,
 			})
 		}
 
-		return sentence
+		return prompt
 	} catch (error) {
 		if (error instanceof HttpError) throw error
 
 		throw new HttpError(503, "AI service is unavailable right now.", {
 			code: "AI_SERVICE_ERROR",
 			cause: error,
-			logMessage: `generateEnglishSentence failed: ${error.message}`,
+			logMessage: `generateLearningPrompt failed: ${error.message}`,
 		})
 	}
 }
 
-export async function checkJapaneseTranslation({ englishSentence, japaneseSentence }) {
+export async function generateEnglishSentence(difficulty = "easy") {
+	return generateLearningPrompt({
+		difficulty,
+		instructions: (difficultyPrompt) => [
+			"Generate exactly one English sentence for a Japanese language learner to translate.",
+			difficultyPrompt,
+			"Return only the sentence.",
+		],
+		input: `Write one ${difficulty} English sentence.`,
+		emptyResponseMessage: "AI service returned an empty sentence.",
+	})
+}
+
+export async function checkJapaneseGameAnswer({
+	gameTitle,
+	prompt,
+	answer,
+	checkInstructions,
+}) {
 	const response = await createResponse({
 		instructions: [
-			"You judge beginner Japanese sentence translations.",
-			"Compare the English sentence with the learner's Japanese sentence.",
+			`You judge beginner Japanese ${gameTitle} answers.`,
+			checkInstructions,
 			"Return only valid JSON.",
 			"The JSON must have these fields: correct boolean, feedback string.",
 			"Do not wrap the JSON in markdown.",
-			"Mark correct when the Japanese naturally communicates the same meaning, even if wording differs.",
 			"If incorrect, give concise, helpful feedback without being harsh.",
-			"Give feedback in english",
+			"Give feedback in English.",
 		].join(" "),
 		input: JSON.stringify({
-			englishSentence,
-			japaneseSentence,
+			prompt,
+			answer,
 		}),
 	})
 
@@ -122,9 +146,23 @@ export async function checkJapaneseTranslation({ englishSentence, japaneseSenten
 			feedback: String(result.feedback || "").trim(),
 		}
 	} catch {
-		throw new HttpError(502, "AI service returned invalid translation feedback.", {
+		throw new HttpError(502, "AI service returned invalid game feedback.", {
 			code: "AI_INVALID_RESPONSE",
 			logMessage: `Invalid JSON from OpenAI: ${rawText}`,
 		})
 	}
+}
+
+export async function checkJapaneseTranslation({ englishSentence, japaneseSentence }) {
+	return checkJapaneseGameAnswer({
+		gameTitle: "sentence translation",
+		prompt: englishSentence,
+		answer: japaneseSentence,
+		checkInstructions: [
+			"The prompt is an English sentence.",
+			"The answer is the learner's Japanese sentence.",
+			"Compare the English sentence with the learner's Japanese sentence.",
+			"Mark correct when the Japanese naturally communicates the same meaning, even if wording differs.",
+		].join(" "),
+	})
 }

@@ -10,11 +10,27 @@ const app = express()
 const apiRoot = "/api/v1"
 
 const allowedOrigins = ["http://localhost:3000", process.env.CLIENT_URL].filter(Boolean)
+const localDevelopmentHosts = new Set(["localhost", "127.0.0.1", "[::1]"])
+
+function isLocalDevelopmentOrigin(origin) {
+	if (process.env.NODE_ENV === "production") return false
+
+	try {
+		const { hostname, protocol } = new URL(origin)
+		return localDevelopmentHosts.has(hostname) && ["http:", "https:"].includes(protocol)
+	} catch {
+		return false
+	}
+}
+
+function isAllowedOrigin(origin) {
+	return !origin || allowedOrigins.includes(origin) || isLocalDevelopmentOrigin(origin)
+}
 
 app.use(
 	cors({
 		origin(origin, callback) {
-			if (!origin || allowedOrigins.includes(origin)) {
+			if (isAllowedOrigin(origin)) {
 				callback(null, true)
 				return
 			}

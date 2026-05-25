@@ -53,19 +53,19 @@ export const GAME_PROMPT_PROFILES = {
 			vocabLevel: "easy",
 			sentenceComplexity: "simple",
 			errorLevel: "easy",
-			purpose: "fix_basic_particle_or_word_order_error",
+			purpose: "fix_basic_particle_or_word_error",
 		},
 		medium: {
 			vocabLevel: "easy",
 			sentenceComplexity: "detailed",
 			errorLevel: "medium",
-			purpose: "fix_tense_or_particle_error",
+			purpose: "fix_particle_or_word_error",
 		},
 		hard: {
 			vocabLevel: "medium",
 			sentenceComplexity: "complex",
 			errorLevel: "hard",
-			purpose: "fix_advanced_conjugation_error",
+			purpose: "fix_context_particle_or_word_error",
 		},
 	},
 	particles: {

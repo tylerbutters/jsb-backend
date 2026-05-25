@@ -1,40 +1,75 @@
-import { promptCase } from "./helpers.js"
+import { promptCase, word } from "./helpers.js"
 
 export const fixSentencePromptCases = {
 	easy: [
 		promptCase(
 			"fix_basic_object_particle",
 			"fix_object_particle",
-			"Japanese: 私は寿司に食べる。 English: I eat sushi. Fix one mistake.",
+			"I eat sushi.",
+			{
+				japaneseTranslation: [word("i", "は"), word("sushi", "に"), word("eat")],
+			},
 		),
 		promptCase(
 			"fix_basic_destination_particle",
 			"fix_destination_particle",
-			"Japanese: 彼女は学校を行く。 English: She goes to school. Fix one mistake.",
+			"She goes to school.",
+			{
+				japaneseTranslation: [word("she", "は"), word("school", "を"), word("go")],
+			},
 		),
 	],
 	medium: [
 		promptCase(
-			"fix_past_tense",
-			"fix_tense",
-			"Japanese: 彼女は昨日学校に行く。 English: She went to school yesterday. Fix one mistake.",
+			"fix_location_particle",
+			"fix_location_particle",
+			"He studies Japanese at the library.",
+			{
+				japaneseTranslation: [
+					word("he", "は"),
+					word("library", "に"),
+					word("japanese", "を"),
+					word("study"),
+				],
+			},
 		),
 		promptCase(
-			"fix_location_particle",
-			"fix_location_particle",
-			"Japanese: 彼は図書館に日本語を勉強した。 English: He studied Japanese at the library. Fix one mistake.",
+			"fix_object_word",
+			"fix_word_choice",
+			"She reads a book.",
+			{
+				japaneseTranslation: [word("she", "は"), word("sushi", "を"), word("read")],
+			},
 		),
 	],
 	hard: [
 		promptCase(
-			"fix_causative_passive",
-			"fix_advanced_conjugation",
-			"Japanese: 彼女は先生に学校に行かせた。 English: She was made to go to school by the teacher. Fix one mistake.",
+			"fix_companion_particle",
+			"fix_context_particle",
+			"She studies Japanese at school with the teacher.",
+			{
+				japaneseTranslation: [
+					word("she", "は"),
+					word("teacher", "に"),
+					word("school", "で"),
+					word("japanese", "を"),
+					word("study"),
+				],
+			},
 		),
 		promptCase(
-			"fix_potential_negative_past",
-			"fix_advanced_conjugation",
-			"Japanese: 彼女は本を読めるなかった。 English: She was not able to read the book. Fix one mistake.",
+			"fix_verb_word",
+			"fix_word_choice",
+			"He reads a book at home with the teacher.",
+			{
+				japaneseTranslation: [
+					word("he", "は"),
+					word("teacher", "と"),
+					word("home", "で"),
+					word("book", "を"),
+					word("drink"),
+				],
+			},
 		),
 	],
 }

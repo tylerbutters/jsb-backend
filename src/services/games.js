@@ -19,9 +19,10 @@ const gameCheckInstructions = {
 		"Mark correct when the Japanese sentence naturally communicates the English sentence and uses the required conjugation.",
 	].join(" "),
 	"fix sentence": [
-		"The prompt contains a Japanese sentence with one mistake and an English target meaning.",
+		"The prompt is an English target meaning.",
+		"The learner was given Japanese sentence elements in normal order with one wrong particle or word.",
 		"The answer is the learner's corrected Japanese sentence.",
-		"Mark correct when the mistake is fixed and the answer naturally matches the target meaning.",
+		"Mark correct when the answer is natural Japanese and matches the target meaning.",
 	].join(" "),
 	particles: [
 		"The prompt is an English target meaning for a Japanese sentence with missing particles.",

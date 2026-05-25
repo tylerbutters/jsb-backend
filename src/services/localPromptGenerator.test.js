@@ -114,6 +114,38 @@ describe("generateLocalGamePrompt", () => {
 		}
 	})
 
+	it("generates fix sentence prompts with English text and one wrong element", () => {
+		const prompt = generateLocalGamePrompt({
+			mode: "fix sentence",
+			difficulty: "easy",
+			random: () => FIRST_RANDOM_VALUE,
+		})
+
+		assert.equal(prompt.prompt, "I eat sushi.")
+		assert.equal(prompt.prompt.includes("Japanese:"), false)
+		assert.equal(prompt.prompt.includes("Fix one mistake"), false)
+		assert.deepEqual(prompt.japaneseTranslation, [
+			{ kanji: "私", kana: "わたし", particle: "は" },
+			{ kanji: "寿司", kana: "すし", particle: "に" },
+			{ kanji: "食べる", kana: "たべる" },
+		])
+
+		for (const difficulty of ["easy", "medium", "hard"]) {
+			for (const randomValue of [FIRST_RANDOM_VALUE, LAST_RANDOM_VALUE]) {
+				const nextPrompt = generateLocalGamePrompt({
+					mode: "fix sentence",
+					difficulty,
+					random: () => randomValue,
+				})
+
+				assert.equal(Array.isArray(nextPrompt.japaneseTranslation), true)
+				assert.notEqual(nextPrompt.japaneseTranslation.length, 0)
+				assert.equal(nextPrompt.prompt.includes("Japanese:"), false)
+				assert.equal(nextPrompt.prompt.includes("Fix one mistake"), false)
+			}
+		}
+	})
+
 	it("keeps conjugation hard prompts focused on hard conjugation with easy vocab", () => {
 		const prompt = generateLocalGamePrompt({
 			mode: "conjugations",

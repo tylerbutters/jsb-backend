@@ -12,7 +12,7 @@ async function createResponse(payload) {
 	}
 
 	return openai.responses.create({
-		model: process.env.OPENAI_MODEL || "gpt-4.1-nano",
+		model: "gpt-4.1-nano",
 		...payload,
 	})
 }

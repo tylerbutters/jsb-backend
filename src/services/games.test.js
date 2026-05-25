@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { HttpError } from "../errors.js"
-import { validateConjugationPrompt } from "./games.js"
+import { generateGamePrompt, validateConjugationPrompt } from "./games.js"
 
 describe("validateConjugationPrompt", () => {
 	it("keeps the English prompt and base-form Japanese kanji/kana word data", () => {
@@ -216,5 +216,42 @@ describe("validateConjugationPrompt", () => {
 				return true
 			},
 		)
+	})
+})
+
+describe("generateGamePrompt", () => {
+	it("uses local generation for all prompt game modes", async () => {
+		for (const mode of [
+			"shuffle",
+			"translate",
+			"conjugations",
+			"fix sentence",
+			"particles",
+			"reorder",
+		]) {
+			const prompt = await generateGamePrompt({ mode, difficulty: "medium" })
+
+			assert.equal(prompt.source, "local")
+			assert.equal(typeof prompt.prompt, "string")
+			assert.notEqual(prompt.prompt.length, 0)
+		}
+	})
+
+	it("uses local generation for translate prompts", async () => {
+		const prompt = await generateGamePrompt({ mode: "translate", difficulty: "easy" })
+
+		assert.equal(prompt.source, "local")
+		assert.equal(typeof prompt.prompt, "string")
+		assert.match(prompt.prompt, /\.$/)
+		assert.equal(prompt.profile.vocabLevel, "easy")
+	})
+
+	it("uses local generation for conjugation prompts", async () => {
+		const prompt = await generateGamePrompt({ mode: "conjugations", difficulty: "hard" })
+
+		assert.equal(prompt.source, "local")
+		assert.equal(prompt.profile.vocabLevel, "easy")
+		assert.equal(prompt.profile.conjugationLevel, "hard")
+		assert.doesNotThrow(() => validateConjugationPrompt(prompt, { difficulty: "hard" }))
 	})
 })

@@ -37,12 +37,6 @@ export function conjugatedWord(key, particle, form) {
 	return word(key, particle, { conjugation: form })
 }
 
-export const verbForms = {
-	past: ["past"],
-	passivePast: ["passive", "past"],
-	causativePassivePast: ["causative", "passive", "past"],
-}
-
 export function promptCase(id, purpose, prompt, data = {}) {
 	return { id, purpose, prompt, ...data }
 }

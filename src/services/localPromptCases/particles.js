@@ -1,4 +1,4 @@
-import { conjugatedWord, promptCase, verbForms, word } from "./helpers.js"
+import { conjugatedWord, promptCase, word } from "./helpers.js"
 
 export const particlePromptCases = {
 	easy: [
@@ -29,7 +29,7 @@ export const particlePromptCases = {
 					word("he"),
 					word("library"),
 					word("japanese"),
-					conjugatedWord("study", null, verbForms.past),
+					conjugatedWord("study", null, ["past"]),
 				],
 			},
 		),
@@ -41,7 +41,7 @@ export const particlePromptCases = {
 				japaneseTranslation: [
 					word("he"),
 					word("teacher"),
-					conjugatedWord("praise", null, verbForms.passivePast),
+					conjugatedWord("praise", null, ["passive", "past"]),
 				],
 			},
 		),
@@ -54,10 +54,10 @@ export const particlePromptCases = {
 			{
 				japaneseTranslation: [
 					word("rain"),
-					conjugatedWord("fall", null, verbForms.past),
+					conjugatedWord("fall", null, ["past"]),
 					word("i"),
 					word("home"),
-					conjugatedWord("study", null, verbForms.past),
+					conjugatedWord("study", null, ["past"]),
 				],
 			},
 		),
@@ -70,7 +70,7 @@ export const particlePromptCases = {
 					word("she"),
 					word("teacher"),
 					word("school"),
-					conjugatedWord("go", null, verbForms.causativePassivePast),
+					conjugatedWord("go", null, ["causative", "passive", "past"]),
 				],
 			},
 		),

@@ -1,4 +1,4 @@
-import { conjugatedWord, promptCase, verbForms, word } from "./helpers.js"
+import { conjugatedWord, promptCase, word } from "./helpers.js"
 
 export const fixSentencePromptCases = {
 	easy: [
@@ -29,7 +29,7 @@ export const fixSentencePromptCases = {
 					word("he", "は"),
 					word("library", "に"),
 					word("japanese", "を"),
-					conjugatedWord("study", null, verbForms.past),
+					conjugatedWord("study", null, ["past"]),
 				],
 			},
 		),
@@ -53,7 +53,7 @@ export const fixSentencePromptCases = {
 					word("teacher", "に"),
 					word("school", "で"),
 					word("japanese", "を"),
-					conjugatedWord("study", null, verbForms.past),
+					conjugatedWord("study", null, ["past"]),
 				],
 			},
 		),

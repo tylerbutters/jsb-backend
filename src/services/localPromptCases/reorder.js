@@ -1,4 +1,4 @@
-import { conjugatedWord, promptCase, verbForms, word } from "./helpers.js"
+import { conjugatedWord, promptCase, word } from "./helpers.js"
 
 export const reorderPromptCases = {
 	easy: [
@@ -27,7 +27,7 @@ export const reorderPromptCases = {
 			{
 				japaneseTranslation: [
 					word("school", "で"),
-					conjugatedWord("study", null, verbForms.past),
+					conjugatedWord("study", null, ["past"]),
 					word("i", "は"),
 					word("japanese", "を"),
 				],
@@ -39,7 +39,7 @@ export const reorderPromptCases = {
 			"She bought a book at the station.",
 			{
 				japaneseTranslation: [
-					conjugatedWord("buy", null, verbForms.past),
+					conjugatedWord("buy", null, ["past"]),
 					word("station", "で"),
 					word("book", "を"),
 					word("she", "は"),
@@ -56,7 +56,7 @@ export const reorderPromptCases = {
 				japaneseTranslation: [
 					word("japanese", "を"),
 					word("school", "で"),
-					conjugatedWord("study", null, verbForms.past),
+					conjugatedWord("study", null, ["past"]),
 					word("she", "は"),
 					word("teacher", "と"),
 				],
@@ -71,7 +71,7 @@ export const reorderPromptCases = {
 					word("teacher", "と"),
 					word("book", "を"),
 					word("home", "で"),
-					conjugatedWord("read", null, verbForms.past),
+					conjugatedWord("read", null, ["past"]),
 					word("he", "は"),
 				],
 			},

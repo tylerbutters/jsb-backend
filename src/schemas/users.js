@@ -1,16 +1,11 @@
 import Joi from "joi"
 
-const emailSchema = Joi.string()
-	.trim()
-	.lowercase()
-	.email()
-	.max(254)
-	.messages({
-		"string.email": "Must be a valid email",
-		"string.max": "Email must be at most 254 characters",
-		"string.empty": "Email is required",
-		"any.required": "Email is required",
-	})
+export const emailSchema = Joi.string().trim().lowercase().email().max(254).messages({
+	"string.email": "Must be a valid email",
+	"string.max": "Email must be at most 254 characters",
+	"string.empty": "Email is required",
+	"any.required": "Email is required",
+})
 
 const passwordSchema = Joi.string()
 	.min(8)
@@ -24,6 +19,22 @@ const passwordSchema = Joi.string()
 		"string.empty": "Password is required",
 		"any.required": "Password is required",
 	})
+
+export const confirmPasswordSchema = Joi.string()
+	.valid(Joi.ref("password"))
+	.messages({
+		"any.only": "Passwords must match",
+		"string.empty": "Confirm password is required",
+		"any.required": "Confirm password is required",
+	})
+	.required()
+
+const currentPasswordSchema = Joi.string()
+	.messages({
+		"string.empty": "Current password is required",
+		"any.required": "Current password is required",
+	})
+	.required()
 
 export const createUserSchema = Joi.object({
 	email: emailSchema.required(),
@@ -79,7 +90,13 @@ export const updateUserSchema = Joi.object({
 		"string.max": "Display name must be at most 80 characters",
 		"string.empty": "Display name is required",
 	}),
+	currentPassword: Joi.when("password", {
+		is: Joi.exist(),
+		then: currentPasswordSchema.required(),
+		otherwise: Joi.forbidden(),
+	}),
 	password: passwordSchema,
+	confirmPassword: confirmPasswordSchema,
 })
 	.or("email", "displayName", "password")
 	.required()

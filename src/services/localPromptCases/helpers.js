@@ -15,10 +15,6 @@ export function conjugatedWord(key, particle, form) {
 	return word(key, particle, { conjugation: form })
 }
 
-export function promptCase(id, prompt, data = {}) {
-	return { id, prompt, ...data }
-}
-
 export function conjugationCase(targetConjugation, prompt, japaneseTranslation) {
 	return {
 		prompt,

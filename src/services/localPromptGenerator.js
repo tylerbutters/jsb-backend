@@ -1,7 +1,7 @@
 import {
 	CONJUGATION_TARGETS_BY_DIFFICULTY,
 	conjugationPromptCases,
-} from "./localPromptCases/index.js"
+} from "./localPromptCases/conjugations.js"
 import { generateRuleBasedGamePrompt } from "./localSentenceGenerator.js"
 
 export { CONJUGATION_TARGETS_BY_DIFFICULTY }

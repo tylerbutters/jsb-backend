@@ -1,7 +1,8 @@
 import nodemailer from "nodemailer"
 import { HttpError } from "../errors.js"
 
-const smtpConfigKeys = ["SMTP_HOST", "EMAIL_FROM"]
+const smtpConfigKeys = ["SMTP_HOST", "SMTP_USER", "SMTP_PASS", "EMAIL_FROM"]
+const defaultSmtpTimeoutMs = 10_000
 
 function getMissingSmtpConfigKeys() {
 	return smtpConfigKeys.filter((key) => !process.env[key])
@@ -29,25 +30,24 @@ function createSmtpSendError(error) {
 }
 
 function getSmtpTransport() {
+	const timeoutMs = Number(process.env.SMTP_TIMEOUT_MS || defaultSmtpTimeoutMs)
+
 	return nodemailer.createTransport({
 		host: process.env.SMTP_HOST,
 		port: Number(process.env.SMTP_PORT || 587),
 		secure: process.env.SMTP_SECURE === "true",
-		auth:
-			process.env.SMTP_USER && process.env.SMTP_PASS
-				? {
-						user: process.env.SMTP_USER,
-						pass: process.env.SMTP_PASS,
-					}
-				: undefined,
+		auth: {
+			user: process.env.SMTP_USER,
+			pass: process.env.SMTP_PASS,
+		},
+		connectionTimeout: timeoutMs,
+		greetingTimeout: timeoutMs,
+		socketTimeout: timeoutMs,
 	})
 }
 
 export async function sendPasswordResetCode({ email, code }) {
-	console.log(process.env.SMTP_HOST)
-
 	if (!hasSmtpConfig()) {
-		console.log(process.env)
 		if (process.env.NODE_ENV === "production") {
 			throw createSmtpConfigError()
 		}

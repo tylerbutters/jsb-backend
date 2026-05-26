@@ -2,7 +2,6 @@ export const translateTemplates = [
 	{
 		id: "simple_present_action",
 		difficulty: "easy",
-		purpose: "basic_action",
 		template: "{sentence}.",
 		slots: {
 			sentence: ["I eat rice", "She drinks water", "He reads a book", "The teacher goes to school"],
@@ -11,7 +10,6 @@ export const translateTemplates = [
 	{
 		id: "simple_preference_or_state",
 		difficulty: "easy",
-		purpose: "basic_state",
 		template: "{sentence}.",
 		slots: {
 			sentence: ["I like sushi", "She is busy", "He is a student", "The book is new"],
@@ -20,7 +18,6 @@ export const translateTemplates = [
 	{
 		id: "time_place_action",
 		difficulty: "medium",
-		purpose: "time_place_detail",
 		template: "{sentence}.",
 		slots: {
 			sentence: [
@@ -34,7 +31,6 @@ export const translateTemplates = [
 	{
 		id: "want_plan_action",
 		difficulty: "medium",
-		purpose: "plans_and_wants",
 		template: "{sentence}.",
 		slots: {
 			sentence: [
@@ -48,7 +44,6 @@ export const translateTemplates = [
 	{
 		id: "reason_or_sequence",
 		difficulty: "hard",
-		purpose: "reason_or_sequence",
 		template: "{sentence}.",
 		slots: {
 			sentence: [
@@ -62,7 +57,6 @@ export const translateTemplates = [
 	{
 		id: "contrast_or_condition",
 		difficulty: "hard",
-		purpose: "contrast_or_condition",
 		template: "{sentence}.",
 		slots: {
 			sentence: [

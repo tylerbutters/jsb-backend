@@ -1,26 +1,29 @@
 import assert from "node:assert/strict"
+import fs from "node:fs"
 import { describe, it } from "node:test"
 import { validateConjugationPrompt } from "./games.js"
+import { LOCAL_VOCABULARY } from "./localPromptCases/vocabulary.js"
 import {
 	CONJUGATION_TARGETS_BY_DIFFICULTY,
 	generateLocalGamePrompt,
 } from "./localPromptGenerator.js"
+import { generateLocalSentence } from "./localSentenceGenerator.js"
 
 const FIRST_RANDOM_VALUE = 0
 const LAST_RANDOM_VALUE = 0.999999
 
 describe("generateLocalGamePrompt", () => {
-	it("generates translate prompts from local templates", () => {
+	it("generates translate prompts from local sentence rules", () => {
 		const prompt = generateLocalGamePrompt({
 			mode: "translate",
 			difficulty: "easy",
 			random: () => FIRST_RANDOM_VALUE,
 		})
 
-		assert.equal(prompt.prompt, "I eat rice.")
+		assert.equal(prompt.prompt, "I eat sushi.")
 		assert.equal(prompt.source, "local")
-		assert.equal(prompt.templateId, "simple_present_action")
-		assert.equal(prompt.profile.purpose, "translation_basic_meaning")
+		assert.equal(prompt.templateId, "subject_object_verb")
+		assert.equal(Object.hasOwn(prompt, "japaneseTranslation"), false)
 	})
 
 	it("generates local prompts for each structured game mode", () => {
@@ -65,13 +68,11 @@ describe("generateLocalGamePrompt", () => {
 			{
 				prompt: "I eat sushi.",
 				source: "local",
-				templateId: "particle_object",
-				purpose: "core_case_particle",
+				templateId: "subject_object_verb",
 				profile: {
 					vocabLevel: "easy",
 					sentenceComplexity: "simple",
 					particleLevel: "easy",
-					purpose: "choose_core_case_particle",
 				},
 				japaneseTranslation: [
 					{ kanji: "私", kana: "わたし" },
@@ -89,13 +90,13 @@ describe("generateLocalGamePrompt", () => {
 			random: () => FIRST_RANDOM_VALUE,
 		})
 
-		assert.equal(prompt.prompt, "She reads a book.")
+		assert.equal(prompt.prompt, "I eat sushi.")
 		assert.equal(prompt.prompt.includes("English:"), false)
 		assert.equal(prompt.prompt.includes("Chunks:"), false)
 		assert.deepEqual(prompt.japaneseTranslation, [
-			{ kanji: "本", kana: "ほん", particle: "を" },
-			{ kanji: "読む", kana: "よむ" },
-			{ kanji: "彼女", kana: "かのじょ", particle: "は" },
+			{ kanji: "寿司", kana: "すし", particle: "を" },
+			{ kanji: "食べる", kana: "たべる" },
+			{ kanji: "私", kana: "わたし", particle: "は" },
 		])
 
 		for (const difficulty of ["easy", "medium", "hard"]) {
@@ -150,6 +151,67 @@ describe("generateLocalGamePrompt", () => {
 			}).japaneseTranslation[3].conjugation,
 			["causative", "passive", "past"],
 		)
+	})
+
+	it("samples rule generation across modes and difficulties", () => {
+		for (const mode of ["translate", "particles", "reorder", "fix sentence"]) {
+			for (const difficulty of ["easy", "medium", "hard"]) {
+				for (const randomValue of [0, 0.2, 0.4, 0.6, 0.8, LAST_RANDOM_VALUE]) {
+					const prompt = generateLocalGamePrompt({
+						mode,
+						difficulty,
+						random: () => randomValue,
+					})
+
+					assert.equal(prompt.source, "local")
+					assert.equal(typeof prompt.prompt, "string")
+					assert.notEqual(prompt.prompt.length, 0)
+					assert.equal(typeof prompt.templateId, "string")
+					assert.notEqual(prompt.templateId.length, 0)
+
+					if (mode === "translate") {
+						assert.equal(Object.hasOwn(prompt, "japaneseTranslation"), false)
+					} else {
+						assert.equal(Array.isArray(prompt.japaneseTranslation), true)
+						assert.notEqual(prompt.japaneseTranslation.length, 0)
+						assert.equal(
+							prompt.japaneseTranslation.some(
+								(wordData) =>
+									Object.hasOwn(wordData, "key") || Object.hasOwn(wordData, "role"),
+							),
+							false,
+						)
+					}
+				}
+			}
+		}
+	})
+
+	it("scrambles reorder prompts without losing generated elements", () => {
+		for (const difficulty of ["easy", "medium", "hard"]) {
+			const random = () => 0
+			const sentence = stripPromptMetadata(
+				generateLocalSentence({ difficulty, random }).japaneseTranslation,
+			)
+			const prompt = generateLocalGamePrompt({ mode: "reorder", difficulty, random })
+
+			assert.notDeepEqual(prompt.japaneseTranslation, sentence)
+			assert.deepEqual(sortWords(prompt.japaneseTranslation), sortWords(sentence))
+		}
+	})
+
+	it("introduces exactly one fix sentence mistake", () => {
+		for (const difficulty of ["easy", "medium", "hard"]) {
+			for (const randomValue of [FIRST_RANDOM_VALUE, LAST_RANDOM_VALUE]) {
+				const random = () => randomValue
+				const sentence = stripPromptMetadata(
+					generateLocalSentence({ difficulty, random }).japaneseTranslation,
+				)
+				const prompt = generateLocalGamePrompt({ mode: "fix sentence", difficulty, random })
+
+				assert.equal(countChangedWords(sentence, prompt.japaneseTranslation), 1)
+			}
+		}
 	})
 
 	it("generates fix sentence prompts with English text and one wrong element", () => {
@@ -248,3 +310,53 @@ describe("generateLocalGamePrompt", () => {
 		assert.equal(generateLocalGamePrompt({ mode: "shuffle" }), null)
 	})
 })
+
+describe("local prompt vocabulary", () => {
+	it("keeps every backend vocabulary word convertible by frontend dictionaries", () => {
+		const frontendElements = loadFrontendProcessedElements()
+
+		for (const [key, vocabularyWord] of Object.entries(LOCAL_VOCABULARY)) {
+			assert.equal(
+				frontendElements.some((element) =>
+					matchesFrontendElement(element, vocabularyWord.kanji, vocabularyWord.kana),
+				),
+				true,
+				`${key} (${vocabularyWord.kanji}/${vocabularyWord.kana}) is missing from frontend dictionaries`,
+			)
+		}
+	})
+})
+
+function stripPromptMetadata(words) {
+	return words.map(({ key, role, ...wordData }) => wordData)
+}
+
+function sortWords(words) {
+	return words.map((wordData) => JSON.stringify(wordData)).sort()
+}
+
+function countChangedWords(leftWords, rightWords) {
+	return leftWords.filter(
+		(wordData, index) => JSON.stringify(wordData) !== JSON.stringify(rightWords[index]),
+	).length
+}
+
+function loadFrontendProcessedElements() {
+	return ["nouns", "verbs", "adjectives", "adverbs", "counters"].flatMap((groupName) =>
+		JSON.parse(
+			fs.readFileSync(
+				new URL(
+					`../../../jsb-frontend/src/pages/sentence-builder-page/jmdict/processed/${groupName}.json`,
+					import.meta.url,
+				),
+				"utf8",
+			),
+		),
+	)
+}
+
+function matchesFrontendElement(element, kanji, kana) {
+	return (
+		element.text === kanji && (element.textKana === kana || (!element.textKana && kanji === kana))
+	)
+}

@@ -4,7 +4,6 @@ export const particlePromptCases = {
 	easy: [
 		promptCase(
 			"particle_object",
-			"core_case_particle",
 			"I eat sushi.",
 			{
 				japaneseTranslation: [word("i"), word("sushi"), word("eat")],
@@ -12,7 +11,6 @@ export const particlePromptCases = {
 		),
 		promptCase(
 			"particle_destination",
-			"core_case_particle",
 			"She goes to school.",
 			{
 				japaneseTranslation: [word("she"), word("school"), word("go")],
@@ -22,7 +20,6 @@ export const particlePromptCases = {
 	medium: [
 		promptCase(
 			"particle_location",
-			"context_particle",
 			"He studied Japanese at the library.",
 			{
 				japaneseTranslation: [
@@ -35,7 +32,6 @@ export const particlePromptCases = {
 		),
 		promptCase(
 			"particle_agent",
-			"context_particle",
 			"He was praised by the teacher.",
 			{
 				japaneseTranslation: [
@@ -49,7 +45,6 @@ export const particlePromptCases = {
 	hard: [
 		promptCase(
 			"particle_reason_subject",
-			"clause_particle",
 			"Because it rained, I studied at home.",
 			{
 				japaneseTranslation: [
@@ -63,7 +58,6 @@ export const particlePromptCases = {
 		),
 		promptCase(
 			"particle_causative_passive_agent",
-			"clause_particle",
 			"She was made to go to school by the teacher.",
 			{
 				japaneseTranslation: [

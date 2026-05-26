@@ -4,7 +4,6 @@ export const reorderPromptCases = {
 	easy: [
 		promptCase(
 			"reorder_basic_action",
-			"basic_word_order",
 			"She reads a book.",
 			{
 				japaneseTranslation: [word("book", "を"), word("read"), word("she", "は")],
@@ -12,7 +11,6 @@ export const reorderPromptCases = {
 		),
 		promptCase(
 			"reorder_basic_drink",
-			"basic_word_order",
 			"He drinks water.",
 			{
 				japaneseTranslation: [word("drink"), word("water", "を"), word("he", "は")],
@@ -22,7 +20,6 @@ export const reorderPromptCases = {
 	medium: [
 		promptCase(
 			"reorder_time_place_action",
-			"time_place_word_order",
 			"I studied Japanese at school.",
 			{
 				japaneseTranslation: [
@@ -35,7 +32,6 @@ export const reorderPromptCases = {
 		),
 		promptCase(
 			"reorder_destination_object",
-			"time_place_word_order",
 			"She bought a book at the station.",
 			{
 				japaneseTranslation: [
@@ -50,7 +46,6 @@ export const reorderPromptCases = {
 	hard: [
 		promptCase(
 			"reorder_reason_clause",
-			"multi_clause_word_order",
 			"She studied Japanese at school with the teacher.",
 			{
 				japaneseTranslation: [
@@ -64,7 +59,6 @@ export const reorderPromptCases = {
 		),
 		promptCase(
 			"reorder_condition_clause",
-			"multi_clause_word_order",
 			"He read a book at home with the teacher.",
 			{
 				japaneseTranslation: [

@@ -22,11 +22,25 @@ const WORDS = {
 	fall: { kanji: "降る", kana: "ふる" },
 }
 
-export function word(key, particle) {
+export function word(key, particle, data = {}) {
 	const baseWord = WORDS[key]
 	if (!baseWord) throw new Error(`Unknown local prompt word: ${key}`)
 
-	return particle ? { ...baseWord, particle } : { ...baseWord }
+	return {
+		...baseWord,
+		...data,
+		...(particle ? { particle } : {}),
+	}
+}
+
+export function conjugatedWord(key, particle, form) {
+	return word(key, particle, { conjugation: form })
+}
+
+export const verbForms = {
+	past: ["past"],
+	passivePast: ["passive", "past"],
+	causativePassivePast: ["causative", "passive", "past"],
 }
 
 export function promptCase(id, purpose, prompt, data = {}) {

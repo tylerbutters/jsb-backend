@@ -114,6 +114,44 @@ describe("generateLocalGamePrompt", () => {
 		}
 	})
 
+	it("allows non-conjugation modes to generate conjugated verb elements", () => {
+		assert.deepEqual(
+			generateLocalGamePrompt({
+				mode: "reorder",
+				difficulty: "medium",
+				random: () => FIRST_RANDOM_VALUE,
+			}).japaneseTranslation,
+			[
+				{ kanji: "学校", kana: "がっこう", particle: "で" },
+				{
+					kanji: "勉強する",
+					kana: "べんきょうする",
+					conjugation: ["past"],
+				},
+				{ kanji: "私", kana: "わたし", particle: "は" },
+				{ kanji: "日本語", kana: "にほんご", particle: "を" },
+			],
+		)
+
+		assert.deepEqual(
+			generateLocalGamePrompt({
+				mode: "particles",
+				difficulty: "medium",
+				random: () => LAST_RANDOM_VALUE,
+			}).japaneseTranslation[2].conjugation,
+			["passive", "past"],
+		)
+
+		assert.deepEqual(
+			generateLocalGamePrompt({
+				mode: "particles",
+				difficulty: "hard",
+				random: () => LAST_RANDOM_VALUE,
+			}).japaneseTranslation[3].conjugation,
+			["causative", "passive", "past"],
+		)
+	})
+
 	it("generates fix sentence prompts with English text and one wrong element", () => {
 		const prompt = generateLocalGamePrompt({
 			mode: "fix sentence",

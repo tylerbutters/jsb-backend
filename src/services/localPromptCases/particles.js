@@ -1,4 +1,4 @@
-import { promptCase, word } from "./helpers.js"
+import { conjugatedWord, promptCase, verbForms, word } from "./helpers.js"
 
 export const particlePromptCases = {
 	easy: [
@@ -25,7 +25,12 @@ export const particlePromptCases = {
 			"context_particle",
 			"He studied Japanese at the library.",
 			{
-				japaneseTranslation: [word("he"), word("library"), word("japanese"), word("study")],
+				japaneseTranslation: [
+					word("he"),
+					word("library"),
+					word("japanese"),
+					conjugatedWord("study", null, verbForms.past),
+				],
 			},
 		),
 		promptCase(
@@ -33,7 +38,11 @@ export const particlePromptCases = {
 			"context_particle",
 			"He was praised by the teacher.",
 			{
-				japaneseTranslation: [word("he"), word("teacher"), word("praise")],
+				japaneseTranslation: [
+					word("he"),
+					word("teacher"),
+					conjugatedWord("praise", null, verbForms.passivePast),
+				],
 			},
 		),
 	],
@@ -41,9 +50,15 @@ export const particlePromptCases = {
 		promptCase(
 			"particle_reason_subject",
 			"clause_particle",
-			"Because it was raining, I studied at home.",
+			"Because it rained, I studied at home.",
 			{
-				japaneseTranslation: [word("rain"), word("fall"), word("i"), word("home"), word("study")],
+				japaneseTranslation: [
+					word("rain"),
+					conjugatedWord("fall", null, verbForms.past),
+					word("i"),
+					word("home"),
+					conjugatedWord("study", null, verbForms.past),
+				],
 			},
 		),
 		promptCase(
@@ -51,7 +66,12 @@ export const particlePromptCases = {
 			"clause_particle",
 			"She was made to go to school by the teacher.",
 			{
-				japaneseTranslation: [word("she"), word("teacher"), word("school"), word("go")],
+				japaneseTranslation: [
+					word("she"),
+					word("teacher"),
+					word("school"),
+					conjugatedWord("go", null, verbForms.causativePassivePast),
+				],
 			},
 		),
 	],

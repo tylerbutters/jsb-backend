@@ -1,4 +1,4 @@
-import { promptCase, word } from "./helpers.js"
+import { conjugatedWord, promptCase, verbForms, word } from "./helpers.js"
 
 export const reorderPromptCases = {
 	easy: [
@@ -23,11 +23,11 @@ export const reorderPromptCases = {
 		promptCase(
 			"reorder_time_place_action",
 			"time_place_word_order",
-			"I study Japanese at school.",
+			"I studied Japanese at school.",
 			{
 				japaneseTranslation: [
 					word("school", "で"),
-					word("study"),
+					conjugatedWord("study", null, verbForms.past),
 					word("i", "は"),
 					word("japanese", "を"),
 				],
@@ -36,10 +36,10 @@ export const reorderPromptCases = {
 		promptCase(
 			"reorder_destination_object",
 			"time_place_word_order",
-			"She buys a book at the station.",
+			"She bought a book at the station.",
 			{
 				japaneseTranslation: [
-					word("buy"),
+					conjugatedWord("buy", null, verbForms.past),
 					word("station", "で"),
 					word("book", "を"),
 					word("she", "は"),
@@ -51,12 +51,12 @@ export const reorderPromptCases = {
 		promptCase(
 			"reorder_reason_clause",
 			"multi_clause_word_order",
-			"She studies Japanese at school with the teacher.",
+			"She studied Japanese at school with the teacher.",
 			{
 				japaneseTranslation: [
 					word("japanese", "を"),
 					word("school", "で"),
-					word("study"),
+					conjugatedWord("study", null, verbForms.past),
 					word("she", "は"),
 					word("teacher", "と"),
 				],
@@ -65,13 +65,13 @@ export const reorderPromptCases = {
 		promptCase(
 			"reorder_condition_clause",
 			"multi_clause_word_order",
-			"He reads a book at home with the teacher.",
+			"He read a book at home with the teacher.",
 			{
 				japaneseTranslation: [
 					word("teacher", "と"),
 					word("book", "を"),
 					word("home", "で"),
-					word("read"),
+					conjugatedWord("read", null, verbForms.past),
 					word("he", "は"),
 				],
 			},

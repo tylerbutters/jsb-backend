@@ -1,4 +1,4 @@
-import { promptCase, word } from "./helpers.js"
+import { conjugatedWord, promptCase, verbForms, word } from "./helpers.js"
 
 export const fixSentencePromptCases = {
 	easy: [
@@ -23,13 +23,13 @@ export const fixSentencePromptCases = {
 		promptCase(
 			"fix_location_particle",
 			"fix_location_particle",
-			"He studies Japanese at the library.",
+			"He studied Japanese at the library.",
 			{
 				japaneseTranslation: [
 					word("he", "は"),
 					word("library", "に"),
 					word("japanese", "を"),
-					word("study"),
+					conjugatedWord("study", null, verbForms.past),
 				],
 			},
 		),
@@ -46,14 +46,14 @@ export const fixSentencePromptCases = {
 		promptCase(
 			"fix_companion_particle",
 			"fix_context_particle",
-			"She studies Japanese at school with the teacher.",
+			"She studied Japanese at school with the teacher.",
 			{
 				japaneseTranslation: [
 					word("she", "は"),
 					word("teacher", "に"),
 					word("school", "で"),
 					word("japanese", "を"),
-					word("study"),
+					conjugatedWord("study", null, verbForms.past),
 				],
 			},
 		),

@@ -30,6 +30,9 @@ const PLACE_KEYS = [
 	"hospital",
 	"movieTheater",
 ]
+const DESCRIBED_NOUN_KEYS = ["book", "library", "room", "movie", "letter", "newspaper"]
+const ADJECTIVE_KEYS = ["new", "old", "big", "small", "quiet", "simple"]
+const ADVERB_KEYS = ["quickly", "slowly", "well", "sometimes"]
 const SIMPLE_ACTIONS = [
 	{ verb: "eat", objects: ["sushi", "rice"] },
 	{ verb: "drink", objects: ["water", "tea"] },
@@ -60,6 +63,32 @@ const POTENTIAL_ACTIONS = [
 	{ verb: "watch", objects: ["movie"] },
 	{ verb: "write", objects: ["letter"] },
 ]
+const COUNTED_OBJECTS = [
+	{
+		object: "book",
+		counter: "bookCounter",
+		counts: [
+			{ number: "2", english: "two" },
+			{ number: "3", english: "three" },
+		],
+	},
+	{
+		object: "letter",
+		counter: "flatCounter",
+		counts: [
+			{ number: "2", english: "two" },
+			{ number: "4", english: "four" },
+		],
+	},
+	{
+		object: "newspaper",
+		counter: "generalCounter",
+		counts: [
+			{ number: "2", english: "two" },
+			{ number: "5", english: "five" },
+		],
+	},
+]
 
 const SENTENCE_FRAMES_BY_DIFFICULTY = {
 	easy: [
@@ -71,6 +100,10 @@ const SENTENCE_FRAMES_BY_DIFFICULTY = {
 			id: "subject_destination_verb",
 			generate: generateSubjectDestinationVerb,
 		},
+		{
+			id: "adjective_predicate",
+			generate: generateAdjectivePredicate,
+		},
 	],
 	medium: [
 		{
@@ -80,6 +113,10 @@ const SENTENCE_FRAMES_BY_DIFFICULTY = {
 		{
 			id: "subject_companion_object_verb",
 			generate: generateSubjectCompanionObjectVerb,
+		},
+		{
+			id: "adverb_object_verb",
+			generate: generateAdverbObjectVerb,
 		},
 		{
 			id: "passive_agent",
@@ -94,6 +131,10 @@ const SENTENCE_FRAMES_BY_DIFFICULTY = {
 		{
 			id: "potential_negative_past",
 			generate: generatePotentialNegativePast,
+		},
+		{
+			id: "counted_object_action",
+			generate: generateCountedObjectAction,
 		},
 		{
 			id: "causative_passive_destination",
@@ -189,6 +230,19 @@ function generateSubjectDestinationVerb({ difficulty, random }) {
 	}
 }
 
+function generateAdjectivePredicate({ difficulty, random }) {
+	const subject = pickWordKey(DESCRIBED_NOUN_KEYS, "describedSubject", difficulty, random)
+	const adjective = pickWordKey(ADJECTIVE_KEYS, "adjective", difficulty, random)
+
+	return {
+		prompt: sentence(`${describedSubjectText(subject)} is ${adjectiveText(adjective)}`),
+		japaneseTranslation: [
+			promptWord(subject, "は", "subject"),
+			promptWord(adjective, null, "adjective"),
+		],
+	}
+}
+
 function generateSubjectPlaceObjectVerb({ difficulty, random }) {
 	const subject = pickWordKey(SUBJECT_KEYS, "subject", difficulty, random)
 	const place = pickWordKey(PLACE_KEYS, "place", difficulty, random)
@@ -205,6 +259,28 @@ function generateSubjectPlaceObjectVerb({ difficulty, random }) {
 		japaneseTranslation: [
 			promptWord(subject, "は", "subject"),
 			promptWord(place, "で", "place"),
+			promptWord(object, "を", "object"),
+			promptVerb(action.verb, tenseToConjugation(tense), "verb"),
+		],
+	}
+}
+
+function generateAdverbObjectVerb({ difficulty, random }) {
+	const subject = pickWordKey(SUBJECT_KEYS, "subject", difficulty, random)
+	const adverb = pickWordKey(ADVERB_KEYS, "adverb", difficulty, random)
+	const action = pick(COMPANION_ACTIONS, random)
+	const object = pickWordKey(action.objects, "object", difficulty, random)
+	const tense = pick(["present", "past"], random)
+
+	return {
+		prompt: sentence(
+			`${subjectText(subject)} ${verbText(action.verb, subject, tense)} ${objectText(
+				object,
+			)} ${adverbText(adverb)}`,
+		),
+		japaneseTranslation: [
+			promptWord(subject, "は", "subject"),
+			promptWord(adverb, null, "adverb"),
 			promptWord(object, "を", "object"),
 			promptVerb(action.verb, tenseToConjugation(tense), "verb"),
 		],
@@ -306,6 +382,28 @@ function generatePotentialNegativePast({ difficulty, random }) {
 	}
 }
 
+function generateCountedObjectAction({ difficulty, random }) {
+	const subject = pickWordKey(SUBJECT_KEYS, "subject", difficulty, random)
+	const place = pickWordKey(PLACE_KEYS, "place", difficulty, random)
+	const countedObject = pick(COUNTED_OBJECTS, random)
+	const count = pick(countedObject.counts, random)
+
+	return {
+		prompt: sentence(
+			`${subjectText(subject)} bought ${count.english} ${pluralObjectText(
+				countedObject.object,
+			)} ${placeText(place)}`,
+		),
+		japaneseTranslation: [
+			promptWord(subject, "は", "subject"),
+			promptWord(place, "で", "place"),
+			promptWord(countedObject.object, "を", "object"),
+			promptCounter(countedObject.counter, count.number),
+			promptVerb("buy", ["past"], "verb"),
+		],
+	}
+}
+
 function generateCausativePassiveDestination({ difficulty, random }) {
 	const subject = pickWordKey(PATIENT_KEYS, "patient", difficulty, random)
 	const agent = pickDistinctWordKey(AGENT_KEYS, "agent", difficulty, random, subject)
@@ -338,9 +436,10 @@ function pickDistinctWordKey(keys, role, difficulty, random, excludedKey) {
 
 function canUseWord(key, role, difficulty) {
 	const vocabularyWord = getLocalVocabularyWord(key)
+	const roles = role === "describedSubject" ? ["object", "place", "destination"] : [role]
 
 	return (
-		vocabularyWord.roles.includes(role) &&
+		roles.some((allowedRole) => vocabularyWord.roles.includes(allowedRole)) &&
 		DIFFICULTY_ORDER.indexOf(vocabularyWord.difficulty) <= DIFFICULTY_ORDER.indexOf(difficulty)
 	)
 }
@@ -361,12 +460,40 @@ function promptVerb(key, conjugation, role) {
 	}
 }
 
+function promptCounter(key, number) {
+	return {
+		key,
+		role: "counter",
+		...word(key, null, {
+			form: {
+				number,
+			},
+		}),
+	}
+}
+
 function subjectText(key) {
+	return getLocalVocabularyWord(key).english.subject
+}
+
+function describedSubjectText(key) {
 	return getLocalVocabularyWord(key).english.subject
 }
 
 function objectText(key) {
 	return getLocalVocabularyWord(key).english.object
+}
+
+function pluralObjectText(key) {
+	return getLocalVocabularyWord(key).english.plural
+}
+
+function adjectiveText(key) {
+	return getLocalVocabularyWord(key).english.predicate
+}
+
+function adverbText(key) {
+	return getLocalVocabularyWord(key).english.adverb
 }
 
 function placeText(key) {
@@ -503,6 +630,16 @@ function getWrongWordKey(wordData) {
 		company: "school",
 		hospital: "library",
 		movieTheater: "school",
+		new: "old",
+		old: "new",
+		big: "small",
+		small: "big",
+		quiet: "simple",
+		simple: "quiet",
+		quickly: "slowly",
+		slowly: "quickly",
+		well: "sometimes",
+		sometimes: "well",
 		eat: "drink",
 		drink: "eat",
 		read: "write",

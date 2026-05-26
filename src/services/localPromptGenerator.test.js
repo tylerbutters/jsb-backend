@@ -153,6 +153,32 @@ describe("generateLocalGamePrompt", () => {
 		)
 	})
 
+	it("generates adjective, adverb, and counter elements", () => {
+		const adjectiveSentence = generateLocalSentence({
+			difficulty: "easy",
+			random: () => LAST_RANDOM_VALUE,
+		})
+		const adverbSentence = generateLocalSentence({
+			difficulty: "medium",
+			random: () => 0.6,
+		})
+		const counterSentence = generateLocalSentence({
+			difficulty: "hard",
+			random: () => 0.6,
+		})
+
+		assert.equal(adjectiveSentence.templateId, "adjective_predicate")
+		assert.equal(generatedElementTypes(adjectiveSentence).includes("adjective"), true)
+		assert.equal(adverbSentence.templateId, "adverb_object_verb")
+		assert.equal(generatedElementTypes(adverbSentence).includes("adverb"), true)
+		assert.equal(counterSentence.templateId, "counted_object_action")
+		assert.equal(generatedElementTypes(counterSentence).includes("counter"), true)
+		assert.equal(
+			counterSentence.japaneseTranslation.some((wordData) => wordData.form?.number),
+			true,
+		)
+	})
+
 	it("samples rule generation across modes and difficulties", () => {
 		for (const mode of ["translate", "particles", "reorder", "fix sentence"]) {
 			for (const difficulty of ["easy", "medium", "hard"]) {
@@ -339,6 +365,10 @@ function countChangedWords(leftWords, rightWords) {
 	return leftWords.filter(
 		(wordData, index) => JSON.stringify(wordData) !== JSON.stringify(rightWords[index]),
 	).length
+}
+
+function generatedElementTypes(sentence) {
+	return sentence.japaneseTranslation.map((wordData) => LOCAL_VOCABULARY[wordData.key].type)
 }
 
 function loadFrontendProcessedElements() {

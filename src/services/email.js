@@ -34,7 +34,7 @@ export async function sendPasswordResetCode({ email, code }) {
 	await transport.sendMail({
 		from: process.env.EMAIL_FROM,
 		to: email,
-		subject: "Your Japanese Sentence Builder password reset code",
+		subject: "Your Bunsho Builder password reset code",
 		text: [
 			"Use this code to reset your password:",
 			"",

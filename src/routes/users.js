@@ -1,13 +1,14 @@
 import { Router } from "express"
 import { asyncHandler } from "../errors.js"
 import { validateBody, validateParams } from "../middleware/validate.js"
-import { createUserSchema, updateUserSchema, userParamsSchema } from "../schemas/users.js"
 import {
-	createUser,
-	deleteUser,
-	getUserById,
-	updateUser,
-} from "../services/users.js"
+	confirmSignupSchema,
+	createUserSchema,
+	updateUserSchema,
+	userParamsSchema,
+} from "../schemas/users.js"
+import { confirmSignup, requestSignupConfirmation } from "../services/signupConfirmation.js"
+import { deleteUser, getUserById, updateUser } from "../services/users.js"
 
 const router = Router()
 
@@ -15,12 +16,29 @@ router.post(
 	"/",
 	validateBody(createUserSchema),
 	asyncHandler(async (req, res) => {
-		const user = await createUser(req.validated.body)
+		const result = await requestSignupConfirmation(req.validated.body)
 
-		res.status(201).send({
-			message: "User successfully created!",
-			user,
-		})
+		res.status(202).send(result)
+	}),
+)
+
+router.post(
+	"/signup-confirmation/request",
+	validateBody(createUserSchema),
+	asyncHandler(async (req, res) => {
+		const result = await requestSignupConfirmation(req.validated.body)
+
+		res.status(202).send(result)
+	}),
+)
+
+router.post(
+	"/signup-confirmation/confirm",
+	validateBody(confirmSignupSchema),
+	asyncHandler(async (req, res) => {
+		const result = await confirmSignup(req.validated.body)
+
+		res.status(201).send(result)
 	}),
 )
 

@@ -372,13 +372,19 @@ function generatedElementTypes(sentence) {
 }
 
 function loadFrontendProcessedElements() {
+	const frontendRootUrl = [
+		"../../../bb-frontend/src/pages/sentence-builder-page/jmdict/processed/",
+		"../../../jsb-frontend/src/pages/sentence-builder-page/jmdict/processed/",
+	].find((candidatePath) => fs.existsSync(new URL(candidatePath, import.meta.url)))
+
+	if (!frontendRootUrl) {
+		throw new Error("Could not find frontend processed dictionaries")
+	}
+
 	return ["nouns", "verbs", "adjectives", "adverbs", "counters"].flatMap((groupName) =>
 		JSON.parse(
 			fs.readFileSync(
-				new URL(
-					`../../../jsb-frontend/src/pages/sentence-builder-page/jmdict/processed/${groupName}.json`,
-					import.meta.url,
-				),
+				new URL(`${frontendRootUrl}${groupName}.json`, import.meta.url),
 				"utf8",
 			),
 		),

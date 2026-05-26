@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { afterEach, beforeEach, describe, it } from "node:test"
 import { HttpError } from "../errors.js"
-import { sendPasswordResetCode } from "./email.js"
+import { sendPasswordResetCode, sendSignupConfirmationCode } from "./email.js"
 
 const envKeys = [
 	"NODE_ENV",
@@ -111,6 +111,42 @@ describe("sendPasswordResetCode", () => {
 			subject: "Your Bunsho Builder password reset code",
 			content:
 				"Use this code to reset your password:\n\n123456\n\nThis code expires in 10 minutes. If you did not request it, you can ignore this email.",
+			mailFormat: "plaintext",
+			askReceipt: "no",
+			encoding: "UTF-8",
+		})
+	})
+
+	it("sends a signup confirmation email through the Mail API", async () => {
+		setZohoEnv()
+
+		const calls = []
+		globalThis.fetch = async (url, options) => {
+			calls.push({ url, options })
+
+			if (url === "https://accounts.zoho.com.au/oauth/v2/token") {
+				return new Response(JSON.stringify({ access_token: "access-token" }), {
+					status: 200,
+					headers: { "content-type": "application/json" },
+				})
+			}
+
+			return new Response(JSON.stringify({ status: { code: 200 } }), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			})
+		}
+
+		await sendSignupConfirmationCode({ email: "user@example.com", code: "123456" })
+
+		assert.equal(calls.length, 2)
+		const message = JSON.parse(calls[1].options.body)
+		assert.deepEqual(message, {
+			fromAddress: "no-reply@bunshobuilder.com",
+			toAddress: "user@example.com",
+			subject: "Your Bunsho Builder confirmation code",
+			content:
+				"Use this code to confirm your email and finish creating your account:\n\n123456\n\nThis code expires in 10 minutes. If you did not request it, you can ignore this email.",
 			mailFormat: "plaintext",
 			askReceipt: "no",
 			encoding: "UTF-8",

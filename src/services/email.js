@@ -35,10 +35,10 @@ function getZohoTimeoutMs() {
 	return Number(envValue("ZOHO_TIMEOUT_MS") || defaultZohoTimeoutMs)
 }
 
-function createZohoConfigError() {
-	return new HttpError(500, "Password reset email is not configured.", {
-		code: "PASSWORD_RESET_EMAIL_NOT_CONFIGURED",
-		logMessage: `Zoho password reset email is not configured. Missing env vars: ${getMissingZohoConfigKeys().join(", ")}`,
+function createZohoConfigError({ purpose, code }) {
+	return new HttpError(500, `${purpose} email is not configured.`, {
+		code,
+		logMessage: `Zoho ${purpose.toLowerCase()} email is not configured. Missing env vars: ${getMissingZohoConfigKeys().join(", ")}`,
 	})
 }
 
@@ -57,21 +57,21 @@ function getZohoErrorMessage(data) {
 		.join(" ")
 }
 
-function createZohoResponseError(operation, response, data) {
+function createZohoResponseError(operation, response, data, { purpose, code }) {
 	const zohoMessage = getZohoErrorMessage(data)
 	const responseDetails = [response.status, response.statusText, zohoMessage]
 		.filter(Boolean)
 		.join(" ")
 
-	return new HttpError(502, "Password reset email could not be sent.", {
-		code: "PASSWORD_RESET_EMAIL_SEND_FAILED",
+	return new HttpError(502, `${purpose} email could not be sent.`, {
+		code,
 		logMessage: `Zoho Mail API failed while trying to ${operation}${responseDetails ? ` (${responseDetails})` : ""}.`,
 	})
 }
 
-function createZohoNetworkError(operation, error) {
-	return new HttpError(502, "Password reset email could not be sent.", {
-		code: "PASSWORD_RESET_EMAIL_SEND_FAILED",
+function createZohoNetworkError(operation, error, { purpose, code }) {
+	return new HttpError(502, `${purpose} email could not be sent.`, {
+		code,
 		cause: error,
 		logMessage: `Zoho Mail API request failed while trying to ${operation}.`,
 	})
@@ -99,7 +99,7 @@ async function readResponseData(response) {
 	}
 }
 
-async function refreshZohoAccessToken() {
+async function refreshZohoAccessToken(emailContext) {
 	const params = new URLSearchParams({
 		refresh_token: envValue("ZOHO_REFRESH_TOKEN"),
 		client_id: envValue("ZOHO_CLIENT_ID"),
@@ -120,20 +120,20 @@ async function refreshZohoAccessToken() {
 			body: params,
 		})
 	} catch (error) {
-		throw createZohoNetworkError("refresh the access token", error)
+		throw createZohoNetworkError("refresh the access token", error, emailContext)
 	}
 
 	const data = await readResponseData(response)
 
 	if (!response.ok || !data?.access_token) {
-		throw createZohoResponseError("refresh the access token", response, data)
+		throw createZohoResponseError("refresh the access token", response, data, emailContext)
 	}
 
 	return data.access_token
 }
 
-async function sendZohoMail({ toAddress, subject, content }) {
-	const accessToken = await refreshZohoAccessToken()
+async function sendZohoMail({ toAddress, subject, content, emailContext, operation }) {
+	const accessToken = await refreshZohoAccessToken(emailContext)
 	const accountId = encodeURIComponent(envValue("ZOHO_ACCOUNT_ID"))
 	const sendUrl = `${getZohoMailApiUrl()}/api/accounts/${accountId}/messages`
 
@@ -158,20 +158,28 @@ async function sendZohoMail({ toAddress, subject, content }) {
 			}),
 		})
 	} catch (error) {
-		throw createZohoNetworkError("send the password reset email", error)
+		throw createZohoNetworkError(operation, error, emailContext)
 	}
 
 	const data = await readResponseData(response)
 
 	if (!response.ok) {
-		throw createZohoResponseError("send the password reset email", response, data)
+		throw createZohoResponseError(operation, response, data, emailContext)
 	}
 }
 
 export async function sendPasswordResetCode({ email, code }) {
+	const emailContext = {
+		purpose: "Password reset",
+		code: "PASSWORD_RESET_EMAIL_SEND_FAILED",
+	}
+
 	if (!hasZohoConfig()) {
 		if (process.env.NODE_ENV === "production") {
-			throw createZohoConfigError()
+			throw createZohoConfigError({
+				purpose: "Password reset",
+				code: "PASSWORD_RESET_EMAIL_NOT_CONFIGURED",
+			})
 		}
 
 		console.info(
@@ -190,5 +198,42 @@ export async function sendPasswordResetCode({ email, code }) {
 			"",
 			"This code expires in 10 minutes. If you did not request it, you can ignore this email.",
 		].join("\n"),
+		emailContext,
+		operation: "send the password reset email",
+	})
+}
+
+export async function sendSignupConfirmationCode({ email, code }) {
+	const emailContext = {
+		purpose: "Signup confirmation",
+		code: "SIGNUP_CONFIRMATION_EMAIL_SEND_FAILED",
+	}
+
+	if (!hasZohoConfig()) {
+		if (process.env.NODE_ENV === "production") {
+			throw createZohoConfigError({
+				purpose: "Signup confirmation",
+				code: "SIGNUP_CONFIRMATION_EMAIL_NOT_CONFIGURED",
+			})
+		}
+
+		console.info(
+			`Signup confirmation code for ${email}: ${code}. Zoho email is not configured; missing env vars: ${getMissingZohoConfigKeys().join(", ")}`,
+		)
+		return
+	}
+
+	await sendZohoMail({
+		toAddress: email,
+		subject: "Your Bunsho Builder confirmation code",
+		content: [
+			"Use this code to confirm your email and finish creating your account:",
+			"",
+			code,
+			"",
+			"This code expires in 10 minutes. If you did not request it, you can ignore this email.",
+		].join("\n"),
+		emailContext,
+		operation: "send the signup confirmation email",
 	})
 }

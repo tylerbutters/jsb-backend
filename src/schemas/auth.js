@@ -1,5 +1,4 @@
 import Joi from "joi"
-import { confirmPasswordSchema } from "./users.js"
 
 export const loginSchema = Joi.object({
 	email: Joi.string()
@@ -75,7 +74,6 @@ export const passwordResetConfirmSchema = Joi.object({
 			"any.required": "Password is required",
 		})
 		.required(),
-	confirmPassword: confirmPasswordSchema,
 })
 	.required()
 	.messages({

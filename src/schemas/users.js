@@ -20,15 +20,6 @@ const passwordSchema = Joi.string()
 		"any.required": "Password is required",
 	})
 
-export const confirmPasswordSchema = Joi.string()
-	.valid(Joi.ref("password"))
-	.messages({
-		"any.only": "Passwords must match",
-		"string.empty": "Confirm password is required",
-		"any.required": "Confirm password is required",
-	})
-	.required()
-
 const currentPasswordSchema = Joi.string()
 	.messages({
 		"string.empty": "Current password is required",
@@ -96,7 +87,6 @@ export const updateUserSchema = Joi.object({
 		otherwise: Joi.forbidden(),
 	}),
 	password: passwordSchema,
-	confirmPassword: confirmPasswordSchema,
 })
 	.or("email", "displayName", "password")
 	.required()

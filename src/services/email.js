@@ -169,6 +169,7 @@ async function sendZohoMail({ toAddress, subject, content, emailContext, operati
 }
 
 export async function sendPasswordResetCode({ email, code }) {
+	// if (process.env.NODE_ENV === "development") return
 	const emailContext = {
 		purpose: "Password reset",
 		code: "PASSWORD_RESET_EMAIL_SEND_FAILED",

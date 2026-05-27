@@ -97,7 +97,6 @@ export const updateUserSchema = Joi.object({
 
 export const requestEmailChangeSchema = Joi.object({
 	email: emailSchema.required(),
-	currentPassword: currentPasswordSchema.required(),
 })
 
 export const confirmEmailChangeSchema = Joi.object({

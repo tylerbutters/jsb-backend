@@ -198,7 +198,7 @@ function isUniqueViolation(error) {
 
 export async function requestEmailChange(
 	userId,
-	{ email, currentPassword },
+	{ email },
 	{
 		query = db.query.bind(db),
 		verifyValue = verifyPassword,
@@ -230,14 +230,6 @@ export async function requestEmailChange(
 		}
 
 		const currentUser = currentUserResult.rows[0]
-
-		const passwordMatches = await verifyValue(currentPassword, currentUser.passwordHash)
-
-		console.log("passwordMatches", passwordMatches)
-
-		if (!passwordMatches) {
-			throw createInvalidCurrentPasswordError()
-		}
 
 		if (newEmail === normalizeEmail(currentUser.email)) {
 			throw createSameEmailError()
@@ -306,7 +298,6 @@ export async function requestEmailChange(
 }
 
 export async function confirmEmailChange(
-	userId,
 	{ token },
 	{ query = db.query.bind(db), hashRawToken = hashToken } = {},
 ) {
@@ -316,18 +307,18 @@ export async function confirmEmailChange(
 		`
 		SELECT id, pending_email AS "pendingEmail"
 		FROM users
-		WHERE id = $1
-			AND pending_email_token_hash = $2
+		WHERE pending_email_token_hash = $1
 			AND pending_email IS NOT NULL
 			AND pending_email_expires_at > NOW()
 		`,
-		[userId, tokenHash],
+		[tokenHash],
 	)
 
 	if (pendingEmailResult.rowCount === 0) {
 		throw createInvalidEmailChangeTokenError()
 	}
 
+	const userId = pendingEmailResult.rows[0].id
 	const pendingEmail = pendingEmailResult.rows[0].pendingEmail
 
 	const existingUserResult = await query(

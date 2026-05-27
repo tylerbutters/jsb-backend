@@ -62,11 +62,10 @@ router.post(
 )
 
 router.post(
-	"/:user_id/email-change/confirm",
-	validateParams(userParamsSchema),
+	"/email-change/confirm",
 	validateBody(confirmEmailChangeSchema),
 	asyncHandler(async (req, res) => {
-		const result = await confirmEmailChange(req.validated.params.user_id, req.validated.body)
+		const result = await confirmEmailChange(req.validated.body)
 
 		res.status(200).send(result)
 	}),

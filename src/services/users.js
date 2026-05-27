@@ -1,10 +1,43 @@
+import crypto from "crypto"
 import { db } from "../db.js"
 import { HttpError } from "../errors.js"
 import { hashPassword, verifyPassword } from "./password.js"
+import { sendEmailChangeConfirmationEmail } from "./email.js"
 
 const publicUserFields = `
 	id, email, display_name AS "displayName", created_at AS "createdAt", updated_at AS "updatedAt"
 `
+const EMAIL_CHANGE_TOKEN_EXPIRES_MINUTES = 30
+
+function normalizeEmail(email) {
+	return email.trim().toLowerCase()
+}
+
+function createEmailInUseError() {
+	return new HttpError(409, "Email is already in use.", {
+		code: "EMAIL_IN_USE",
+	})
+}
+
+function createSameEmailError() {
+	return new HttpError(400, "New email must be different from your current email.", {
+		code: "SAME_EMAIL",
+	})
+}
+
+function createInvalidEmailChangeTokenError() {
+	return new HttpError(400, "Invalid or expired email change link.", {
+		code: "INVALID_EMAIL_CHANGE_TOKEN",
+	})
+}
+
+function createToken() {
+	return crypto.randomBytes(32).toString("hex")
+}
+
+function hashToken(token) {
+	return crypto.createHash("sha256").update(token).digest("hex")
+}
 
 function createUserNotFoundError() {
 	return new HttpError(404, "User not found.", {
@@ -26,21 +59,23 @@ export async function createUser({ email, displayName, password }) {
 	return result.rows[0]
 }
 
-export async function getUserById(userId) {
-	const result = await db.query(
+export async function getUserIdByEmail(email, { query = db.query.bind(db) } = {}) {
+	const normalizedEmail = normalizeEmail(email)
+
+	const result = await query(
 		`
-		SELECT ${publicUserFields}
+		SELECT id
 		FROM users
-		WHERE id = $1
-	`,
-		[userId],
+		WHERE email = $1
+		`,
+		[normalizedEmail],
 	)
 
 	if (result.rowCount === 0) {
 		throw createUserNotFoundError()
 	}
 
-	return result.rows[0]
+	return result.rows[0].id
 }
 
 function createInvalidCurrentPasswordError() {
@@ -126,4 +161,211 @@ export async function getUserByEmailWithPassword(email) {
 	)
 
 	return result.rows[0] || null
+}
+
+function createEmailChangeDatabaseError(error) {
+	return new HttpError(500, "Email change could not be saved.", {
+		code: "EMAIL_CHANGE_DATABASE_ERROR",
+		cause: error,
+		logMessage: error.message,
+	})
+}
+
+function createEmailChangeSendError(error) {
+	return new HttpError(502, "Verification email could not be sent.", {
+		code: "EMAIL_CHANGE_EMAIL_SEND_FAILED",
+		cause: error,
+		logMessage: error.message,
+	})
+}
+
+function createMissingEmailChangeColumnsError(error) {
+	return new HttpError(500, "Email change is not configured correctly.", {
+		code: "EMAIL_CHANGE_COLUMNS_MISSING",
+		cause: error,
+		logMessage:
+			"Email change columns are missing. Run the migration for pending_email, pending_email_token_hash, pending_email_requested_at, and pending_email_expires_at.",
+	})
+}
+
+function isMissingColumnError(error) {
+	return error?.code === "42703"
+}
+
+function isUniqueViolation(error) {
+	return error?.code === "23505"
+}
+
+export async function requestEmailChange(
+	userId,
+	{ email, currentPassword },
+	{
+		query = db.query.bind(db),
+		verifyValue = verifyPassword,
+		sendEmailChangeEmail = sendEmailChangeConfirmationEmail,
+		createRawToken = createToken,
+		hashRawToken = hashToken,
+	} = {},
+) {
+	try {
+		const newEmail = normalizeEmail(email)
+
+		console.log("requestEmailChange start", { userId, newEmail })
+
+		const currentUserResult = await query(
+			`
+			SELECT id, email, password_hash AS "passwordHash"
+			FROM users
+			WHERE id = $1
+			`,
+			[userId],
+		)
+
+		console.log("currentUserResult", {
+			rowCount: currentUserResult.rowCount,
+		})
+
+		if (currentUserResult.rowCount === 0) {
+			throw createUserNotFoundError()
+		}
+
+		const currentUser = currentUserResult.rows[0]
+
+		const passwordMatches = await verifyValue(currentPassword, currentUser.passwordHash)
+
+		console.log("passwordMatches", passwordMatches)
+
+		if (!passwordMatches) {
+			throw createInvalidCurrentPasswordError()
+		}
+
+		if (newEmail === normalizeEmail(currentUser.email)) {
+			throw createSameEmailError()
+		}
+
+		const existingUserResult = await query(
+			`
+			SELECT id
+			FROM users
+			WHERE email = $1
+			LIMIT 1
+			`,
+			[newEmail],
+		)
+
+		console.log("existingUserResult", {
+			rowCount: existingUserResult.rowCount,
+		})
+
+		if (existingUserResult.rowCount > 0) {
+			throw createEmailInUseError()
+		}
+
+		const token = createRawToken()
+		const tokenHash = hashRawToken(token)
+		const expiresAt = new Date(Date.now() + EMAIL_CHANGE_TOKEN_EXPIRES_MINUTES * 60 * 1000)
+
+		console.log("updating pending email columns")
+
+		await query(
+			`
+			UPDATE users
+			SET pending_email = $1,
+				pending_email_token_hash = $2,
+				pending_email_requested_at = NOW(),
+				pending_email_expires_at = $3
+			WHERE id = $4
+			`,
+			[newEmail, tokenHash, expiresAt, userId],
+		)
+
+		console.log("sending email change email")
+
+		await sendEmailChangeEmail({
+			currentEmail: currentUser.email,
+			newEmail,
+			token,
+		})
+
+		console.log("requestEmailChange success")
+
+		return {
+			message: "Verification email sent. Check your new email address to confirm the change.",
+		}
+	} catch (error) {
+		console.error("requestEmailChange failed:", {
+			message: error.message,
+			code: error.code,
+			status: error.status,
+			statusCode: error.statusCode,
+			stack: error.stack,
+		})
+
+		throw error
+	}
+}
+
+export async function confirmEmailChange(
+	userId,
+	{ token },
+	{ query = db.query.bind(db), hashRawToken = hashToken } = {},
+) {
+	const tokenHash = hashRawToken(token)
+
+	const pendingEmailResult = await query(
+		`
+		SELECT id, pending_email AS "pendingEmail"
+		FROM users
+		WHERE id = $1
+			AND pending_email_token_hash = $2
+			AND pending_email IS NOT NULL
+			AND pending_email_expires_at > NOW()
+		`,
+		[userId, tokenHash],
+	)
+
+	if (pendingEmailResult.rowCount === 0) {
+		throw createInvalidEmailChangeTokenError()
+	}
+
+	const pendingEmail = pendingEmailResult.rows[0].pendingEmail
+
+	const existingUserResult = await query(
+		`
+		SELECT id
+		FROM users
+		WHERE email = $1
+			AND id <> $2
+		LIMIT 1
+		`,
+		[pendingEmail, userId],
+	)
+
+	if (existingUserResult.rowCount > 0) {
+		throw createEmailInUseError()
+	}
+
+	const result = await query(
+		`
+		UPDATE users
+		SET email = pending_email,
+			pending_email = NULL,
+			pending_email_token_hash = NULL,
+			pending_email_requested_at = NULL,
+			pending_email_expires_at = NULL,
+			updated_at = NOW()
+		WHERE id = $1
+		RETURNING ${publicUserFields}
+		`,
+		[userId],
+	)
+
+	if (result.rowCount === 0) {
+		throw createUserNotFoundError()
+	}
+
+	return {
+		message: "Email updated.",
+		user: result.rows[0],
+	}
 }

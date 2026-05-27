@@ -238,3 +238,41 @@ export async function sendSignupConfirmationCode({ email, code }) {
 		operation: "send the signup confirmation email",
 	})
 }
+
+export async function sendEmailChangeConfirmationEmail({ currentEmail, newEmail, token }) {
+	const emailContext = {
+		purpose: "Email change confirmation",
+		code: "EMAIL_CHANGE_CONFIRMATION_EMAIL_SEND_FAILED",
+	}
+
+	const confirmUrl = `${process.env.CLIENT_URL}/confirm-email-change?token=${token}`
+	console.log(confirmUrl)
+	if (!hasZohoConfig()) {
+		if (process.env.NODE_ENV === "production") {
+			throw createZohoConfigError({
+				purpose: "Email change confirmation",
+				code: "EMAIL_CHANGE_CONFIRMATION_EMAIL_NOT_CONFIGURED",
+			})
+		}
+
+		console.info(
+			`Email change confirmation link for ${currentEmail}: ${confirmUrl}. Zoho email is not configured; missing env vars: ${getMissingZohoConfigKeys().join(", ")}`,
+		)
+		return
+	}
+
+	await sendZohoMail({
+		toAddress: currentEmail,
+		subject: "Confirm your Bunsho Builder email change",
+		content: [
+			`A request has been made to change your email to: ${newEmail}`,
+			"Click the link below to confirm your new email address:",
+			"",
+			confirmUrl,
+			"",
+			"This link expires in 30 minutes. If you did not request this, you can ignore this email.",
+		].join("\n"),
+		emailContext,
+		operation: "send the email change confirmation email",
+	})
+}

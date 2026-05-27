@@ -2,13 +2,21 @@ import { Router } from "express"
 import { asyncHandler } from "../errors.js"
 import { validateBody, validateParams } from "../middleware/validate.js"
 import {
+	confirmEmailChangeSchema,
 	confirmSignupSchema,
 	createUserSchema,
+	requestEmailChangeSchema,
 	updateUserSchema,
 	userParamsSchema,
 } from "../schemas/users.js"
 import { confirmSignup, requestSignupConfirmation } from "../services/signupConfirmation.js"
-import { deleteUser, getUserById, updateUser } from "../services/users.js"
+import {
+	confirmEmailChange,
+	deleteUser,
+	getUserIdByEmail,
+	requestEmailChange,
+	updateUser,
+} from "../services/users.js"
 
 const router = Router()
 
@@ -42,11 +50,33 @@ router.post(
 	}),
 )
 
-router.get(
-	"/:user_id",
+router.post(
+	"/:user_id/email-change/request",
 	validateParams(userParamsSchema),
+	validateBody(requestEmailChangeSchema),
 	asyncHandler(async (req, res) => {
-		const user = await getUserById(req.validated.params.user_id)
+		const result = await requestEmailChange(req.validated.params.user_id, req.validated.body)
+
+		res.status(202).send(result)
+	}),
+)
+
+router.post(
+	"/:user_id/email-change/confirm",
+	validateParams(userParamsSchema),
+	validateBody(confirmEmailChangeSchema),
+	asyncHandler(async (req, res) => {
+		const result = await confirmEmailChange(req.validated.params.user_id, req.validated.body)
+
+		res.status(200).send(result)
+	}),
+)
+
+router.get(
+	"/:email",
+	// validateParams(userParamsSchema),
+	asyncHandler(async (req, res) => {
+		const user = await getUserIdByEmail(req.params.email)
 
 		res.status(200).send({
 			user,

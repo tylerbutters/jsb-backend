@@ -94,3 +94,22 @@ export const updateUserSchema = Joi.object({
 		"object.missing": "At least one account detail is required",
 		"object.unknown": "{#label} is not allowed",
 	})
+
+export const requestEmailChangeSchema = Joi.object({
+	email: emailSchema.required(),
+	currentPassword: currentPasswordSchema.required(),
+})
+
+export const confirmEmailChangeSchema = Joi.object({
+	token: Joi.string()
+		.trim()
+		.min(32)
+		.max(256)
+		.messages({
+			"string.empty": "Token is required",
+			"string.min": "Invalid token",
+			"string.max": "Invalid token",
+			"any.required": "Token is required",
+		})
+		.required(),
+})

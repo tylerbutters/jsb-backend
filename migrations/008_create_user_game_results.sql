@@ -4,7 +4,10 @@ CREATE TABLE IF NOT EXISTS user_game_results (
 	challenge_id UUID NOT NULL,
 	mode TEXT NOT NULL,
 	difficulty TEXT NOT NULL DEFAULT 'easy',
+	prompt TEXT,
+	answer TEXT,
 	correct BOOLEAN NOT NULL,
+	feedback TEXT,
 	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	CONSTRAINT user_game_results_mode_check
 		CHECK (mode IN ('translate', 'conjugations', 'fix sentence', 'particles', 'reorder')),

@@ -68,7 +68,7 @@ router.post(
 	asyncHandler(async (req, res) => {
 		const result = await checkGameAnswer(req.validated.body)
 		const currentUser = await getOptionalCurrentUser(req, res)
-		const { challengeId, difficulty, mode } = req.validated.body
+		const { answer, challengeId, difficulty, mode, prompt } = req.validated.body
 
 		if (currentUser && challengeId) {
 			await recordGameResult({
@@ -76,7 +76,10 @@ router.post(
 				challengeId,
 				mode,
 				difficulty,
+				prompt,
+				answer,
 				correct: result.correct,
+				feedback: result.feedback,
 			})
 		}
 

@@ -1,4 +1,5 @@
 import Joi from "joi"
+import { GAME_MODES } from "../gameModes.js"
 
 export const emailSchema = Joi.string().trim().lowercase().email().max(254).messages({
 	"string.email": "Must be a valid email",
@@ -71,6 +72,29 @@ export const userParamsSchema = Joi.object({
 		"number.positive": "User ID must be a positive integer",
 		"number.max": "User ID must be a positive integer",
 		"any.required": "User ID is required",
+	}),
+})
+
+export const gameHistoryQuerySchema = Joi.object({
+	mode: Joi.string()
+		.valid("all", ...GAME_MODES)
+		.default("all")
+		.messages({
+			"any.only": "Game history mode is not supported",
+		}),
+	difficulty: Joi.string().valid("all", "easy", "medium", "hard").default("all").messages({
+		"any.only": "Difficulty must be all, easy, medium, or hard",
+	}),
+	limit: Joi.number().integer().min(1).max(100).default(50).messages({
+		"number.base": "Limit must be a positive integer",
+		"number.integer": "Limit must be a positive integer",
+		"number.min": "Limit must be at least 1",
+		"number.max": "Limit must be at most 100",
+	}),
+	offset: Joi.number().integer().min(0).default(0).messages({
+		"number.base": "Offset must be a non-negative integer",
+		"number.integer": "Offset must be a non-negative integer",
+		"number.min": "Offset must be a non-negative integer",
 	}),
 })
 

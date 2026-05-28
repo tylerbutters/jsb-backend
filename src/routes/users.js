@@ -29,9 +29,15 @@ import {
 	getUserGameHistory,
 	getUserGameQuota,
 	getUserGameStats,
+	FREE_STATS_VISIBILITY,
+	PREMIUM_STATS_VISIBILITY,
 } from "../services/gameStats.js"
 
 const router = Router()
+
+function statsVisibilityForUser(user) {
+	return user?.plan === "premium" ? PREMIUM_STATS_VISIBILITY : FREE_STATS_VISIBILITY
+}
 
 router.post(
 	"/",
@@ -98,7 +104,9 @@ router.get(
 	requireAuth,
 	requireCurrentUserParam,
 	asyncHandler(async (req, res) => {
-		const stats = await getUserGameStats(req.validated.params.user_id)
+		const stats = await getUserGameStats(req.validated.params.user_id, {
+			visibility: statsVisibilityForUser(req.currentUser),
+		})
 
 		res.status(200).send(stats)
 	}),
@@ -126,6 +134,9 @@ router.get(
 		const history = await getUserGameHistory(
 			req.validated.params.user_id,
 			req.validated.query,
+			{
+				visibility: statsVisibilityForUser(req.currentUser),
+			},
 		)
 
 		res.status(200).send(history)

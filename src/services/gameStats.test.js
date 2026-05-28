@@ -169,6 +169,30 @@ describe("getUserGameHistory", () => {
 			},
 		)
 	})
+
+	it("limits history to the current UTC day when requested", async () => {
+		await getUserGameHistory(
+			12,
+			{},
+			{
+				visibility: "today",
+				now: new Date("2026-05-28T13:15:00.000Z"),
+				query: async (sql, params) => {
+					assert.match(sql, /created_at >= \$2/)
+					assert.match(sql, /created_at < \$3/)
+					assert.deepEqual(params, [
+						12,
+						new Date("2026-05-28T00:00:00.000Z"),
+						new Date("2026-05-29T00:00:00.000Z"),
+						51,
+						0,
+					])
+
+					return { rows: [] }
+				},
+			},
+		)
+	})
 })
 
 describe("getUserGameStats", () => {
@@ -288,6 +312,24 @@ describe("getUserGameStats", () => {
 				{ mode: "reorder", totalGames: 0 },
 			],
 		)
+	})
+
+	it("limits stats to the current UTC day when requested", async () => {
+		await getUserGameStats(12, {
+			visibility: "today",
+			now: new Date("2026-05-28T13:15:00.000Z"),
+			query: async (sql, params) => {
+				assert.match(sql, /created_at >= \$2/)
+				assert.match(sql, /created_at < \$3/)
+				assert.deepEqual(params, [
+					12,
+					new Date("2026-05-28T00:00:00.000Z"),
+					new Date("2026-05-29T00:00:00.000Z"),
+				])
+
+				return { rows: [] }
+			},
+		})
 	})
 })
 

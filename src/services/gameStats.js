@@ -11,6 +11,8 @@ export const TRACKED_GAME_MODES = [
 export const GAME_DIFFICULTIES = ["easy", "medium", "hard"]
 export const GAME_STAT_FILTERS = ["all", ...GAME_DIFFICULTIES]
 export const FREE_DAILY_CHALLENGE_LIMIT = 3
+export const FREE_STATS_VISIBILITY = "today"
+export const PREMIUM_STATS_VISIBILITY = "all"
 
 const trackedModeLabels = new Map(
 	TRACKED_GAME_MODES.map((gameMode) => [gameMode.mode, gameMode.label]),
@@ -54,6 +56,10 @@ function utcDayRange(now = new Date()) {
 	const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
 
 	return { start, end }
+}
+
+function statsVisibilityRange({ visibility = PREMIUM_STATS_VISIBILITY, now = new Date() } = {}) {
+	return visibility === FREE_STATS_VISIBILITY ? utcDayRange(now) : null
 }
 
 function createQuota({ plan, used, resetsAt }) {
@@ -278,8 +284,25 @@ export async function recordGameResult(
 
 export async function getUserGameStats(
 	userId,
-	{ query = (sql, params) => db.query(sql, params) } = {},
+	{
+		visibility = PREMIUM_STATS_VISIBILITY,
+		now = new Date(),
+		query = (sql, params) => db.query(sql, params),
+	} = {},
 ) {
+	const visibilityRange = statsVisibilityRange({ visibility, now })
+	const params = [userId]
+	const visibilityCondition = visibilityRange
+		? `
+			AND created_at >= $2
+			AND created_at < $3
+		`
+		: ""
+
+	if (visibilityRange) {
+		params.push(visibilityRange.start, visibilityRange.end)
+	}
+
 	const result = await query(
 		`
 		SELECT mode,
@@ -289,9 +312,10 @@ export async function getUserGameStats(
 			COUNT(*) FILTER (WHERE NOT correct) AS failed
 		FROM user_game_results
 		WHERE user_id = $1
+			${visibilityCondition}
 		GROUP BY mode, difficulty
 		`,
-		[userId],
+		params,
 	)
 	const statsByFilter = new Map(
 		GAME_STAT_FILTERS.map((difficulty) => [difficulty, createModeAccumulator()]),
@@ -325,7 +349,7 @@ export async function getUserGameStats(
 	}
 }
 
-function createHistoryWhereClause({ mode, difficulty }) {
+function createHistoryWhereClause({ mode, difficulty, visibility, now }) {
 	const params = []
 	const conditions = []
 
@@ -342,6 +366,12 @@ function createHistoryWhereClause({ mode, difficulty }) {
 
 	if (difficulty && difficulty !== "all") {
 		conditions.push(`difficulty = ${addParam(difficulty)}`)
+	}
+
+	const visibilityRange = statsVisibilityRange({ visibility, now })
+	if (visibilityRange) {
+		conditions.push(`created_at >= ${addParam(visibilityRange.start)}`)
+		conditions.push(`created_at < ${addParam(visibilityRange.end)}`)
 	}
 
 	return { conditions, params }
@@ -367,11 +397,20 @@ function normalizeHistoryItem(row) {
 export async function getUserGameHistory(
 	userId,
 	{ mode = "all", difficulty = "all", limit = 50, offset = 0 } = {},
-	{ query = (sql, params) => db.query(sql, params) } = {},
+	{
+		visibility = PREMIUM_STATS_VISIBILITY,
+		now = new Date(),
+		query = (sql, params) => db.query(sql, params),
+	} = {},
 ) {
 	const boundedLimit = Math.min(Math.max(Number(limit) || 50, 1), 100)
 	const boundedOffset = Math.max(Number(offset) || 0, 0)
-	const { conditions, params } = createHistoryWhereClause({ mode, difficulty })
+	const { conditions, params } = createHistoryWhereClause({
+		mode,
+		difficulty,
+		visibility,
+		now,
+	})
 	params[0] = userId
 	params.push(boundedLimit + 1, boundedOffset)
 

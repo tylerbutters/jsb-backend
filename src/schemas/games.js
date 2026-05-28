@@ -55,3 +55,16 @@ export const gameCheckSchema = Joi.object({
 	.messages({
 		"object.unknown": "{#label} is not allowed",
 	})
+
+export const sandboxCheckSchema = Joi.object({
+	answer: Joi.string().trim().min(1).max(1000).required().messages({
+		"string.min": "Answer is required",
+		"string.max": "Answer must be at most 1000 characters",
+		"string.empty": "Answer is required",
+		"any.required": "Answer is required",
+	}),
+})
+	.required()
+	.messages({
+		"object.unknown": "{#label} is not allowed",
+	})

@@ -178,3 +178,21 @@ export async function checkGameAnswer({ mode, prompt, answer }) {
 		checkInstructions,
 	})
 }
+
+export async function checkSandboxSentence(
+	{ answer },
+	{ checkAnswer = checkJapaneseGameAnswer } = {},
+) {
+	return checkAnswer({
+		gameTitle: "sandbox sentence check",
+		prompt: "Evaluate the learner's standalone Japanese sentence.",
+		answer,
+		checkInstructions: [
+			"The prompt is only context; there is no target translation.",
+			"The answer is a standalone Japanese sentence built by a beginner learner.",
+			"Mark correct when the sentence is grammatical, natural enough, and understandable Japanese.",
+			"Do not mark incorrect only because punctuation is missing or because several natural phrasings are possible.",
+			"If incorrect, explain the main grammar or word-choice issue and suggest a concise fix.",
+		].join(" "),
+	})
+}

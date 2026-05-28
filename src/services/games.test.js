@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { HttpError } from "../errors.js"
-import { generateGamePrompt, validateConjugationPrompt } from "./games.js"
+import { checkSandboxSentence, generateGamePrompt, validateConjugationPrompt } from "./games.js"
 
 describe("validateConjugationPrompt", () => {
 	it("keeps the English prompt and base-form Japanese kanji/kana word data", () => {
@@ -252,5 +252,26 @@ describe("generateGamePrompt", () => {
 		assert.equal(prompt.profile.vocabLevel, "easy")
 		assert.equal(prompt.profile.conjugationLevel, "hard")
 		assert.doesNotThrow(() => validateConjugationPrompt(prompt, { difficulty: "hard" }))
+	})
+})
+
+describe("checkSandboxSentence", () => {
+	it("checks a standalone Japanese sentence without requiring a target prompt", async () => {
+		const calls = []
+		const result = await checkSandboxSentence(
+			{ answer: "猫がいます。" },
+			{
+				checkAnswer: async (payload) => {
+					calls.push(payload)
+					return { correct: true, feedback: "Natural sentence." }
+				},
+			},
+		)
+
+		assert.deepEqual(result, { correct: true, feedback: "Natural sentence." })
+		assert.equal(calls.length, 1)
+		assert.equal(calls[0].gameTitle, "sandbox sentence check")
+		assert.equal(calls[0].answer, "猫がいます。")
+		assert.match(calls[0].checkInstructions, /standalone Japanese sentence/)
 	})
 })

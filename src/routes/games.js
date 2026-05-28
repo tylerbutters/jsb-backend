@@ -4,9 +4,10 @@ import { validateBody, validateQuery } from "../middleware/validate.js"
 import {
 	gameCheckSchema,
 	gamePromptQuerySchema,
+	sandboxCheckSchema,
 	translateSchema,
 } from "../schemas/games.js"
-import { checkGameAnswer, generateGamePrompt } from "../services/games.js"
+import { checkGameAnswer, checkSandboxSentence, generateGamePrompt } from "../services/games.js"
 import { translateJapanese } from "../services/translate.js"
 
 const router = Router()
@@ -45,6 +46,16 @@ router.post(
 	validateBody(gameCheckSchema),
 	asyncHandler(async (req, res) => {
 		const result = await checkGameAnswer(req.validated.body)
+
+		res.status(200).send(result)
+	}),
+)
+
+router.post(
+	"/sandbox/check-japanese",
+	validateBody(sandboxCheckSchema),
+	asyncHandler(async (req, res) => {
+		const result = await checkSandboxSentence(req.validated.body)
 
 		res.status(200).send(result)
 	}),

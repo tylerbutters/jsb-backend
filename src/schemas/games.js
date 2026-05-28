@@ -38,6 +38,7 @@ export const gamePromptQuerySchema = Joi.object({
 
 export const gameCheckSchema = Joi.object({
 	mode: gameModeSchema,
+	difficulty: difficultySchema,
 	prompt: Joi.string().trim().min(1).max(1000).required().messages({
 		"string.min": "Prompt is required",
 		"string.max": "Prompt must be at most 1000 characters",

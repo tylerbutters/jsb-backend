@@ -1,5 +1,12 @@
 import { Router } from "express"
 import { asyncHandler } from "../errors.js"
+import {
+	clearSessionCookie,
+	requireAuth,
+	requireCurrentUserParam,
+	setSessionCookie,
+} from "../middleware/auth.js"
+import { signupRateLimiter } from "../middleware/rateLimiters.js"
 import { validateBody, validateParams } from "../middleware/validate.js"
 import {
 	confirmEmailChangeSchema,
@@ -13,15 +20,16 @@ import { confirmSignup, requestSignupConfirmation } from "../services/signupConf
 import {
 	confirmEmailChange,
 	deleteUser,
-	getUserIdByEmail,
 	requestEmailChange,
 	updateUser,
 } from "../services/users.js"
+import { createUserSession } from "../services/sessions.js"
 
 const router = Router()
 
 router.post(
 	"/",
+	signupRateLimiter,
 	validateBody(createUserSchema),
 	asyncHandler(async (req, res) => {
 		const result = await requestSignupConfirmation(req.validated.body)
@@ -32,6 +40,7 @@ router.post(
 
 router.post(
 	"/signup-confirmation/request",
+	signupRateLimiter,
 	validateBody(createUserSchema),
 	asyncHandler(async (req, res) => {
 		const result = await requestSignupConfirmation(req.validated.body)
@@ -42,9 +51,13 @@ router.post(
 
 router.post(
 	"/signup-confirmation/confirm",
+	signupRateLimiter,
 	validateBody(confirmSignupSchema),
 	asyncHandler(async (req, res) => {
 		const result = await confirmSignup(req.validated.body)
+		const session = await createUserSession(result.user.id)
+
+		setSessionCookie(res, session.token)
 
 		res.status(201).send(result)
 	}),
@@ -53,6 +66,8 @@ router.post(
 router.post(
 	"/:user_id/email-change/request",
 	validateParams(userParamsSchema),
+	requireAuth,
+	requireCurrentUserParam,
 	validateBody(requestEmailChangeSchema),
 	asyncHandler(async (req, res) => {
 		const result = await requestEmailChange(req.validated.params.user_id, req.validated.body)
@@ -71,21 +86,11 @@ router.post(
 	}),
 )
 
-router.get(
-	"/:email",
-	// validateParams(userParamsSchema),
-	asyncHandler(async (req, res) => {
-		const user = await getUserIdByEmail(req.params.email)
-
-		res.status(200).send({
-			user,
-		})
-	}),
-)
-
 router.patch(
 	"/:user_id",
 	validateParams(userParamsSchema),
+	requireAuth,
+	requireCurrentUserParam,
 	validateBody(updateUserSchema),
 	asyncHandler(async (req, res) => {
 		const user = await updateUser(req.validated.params.user_id, req.validated.body)
@@ -100,8 +105,11 @@ router.patch(
 router.delete(
 	"/:user_id",
 	validateParams(userParamsSchema),
+	requireAuth,
+	requireCurrentUserParam,
 	asyncHandler(async (req, res) => {
 		await deleteUser(req.validated.params.user_id)
+		clearSessionCookie(res)
 
 		res.status(200).send({
 			message: "Account deleted.",

@@ -1,4 +1,4 @@
-import crypto from "crypto"
+import crypto from "node:crypto"
 import { db } from "../db.js"
 import { HttpError } from "../errors.js"
 import { hashPassword, verifyPassword } from "./password.js"
@@ -201,99 +201,70 @@ export async function requestEmailChange(
 	{ email },
 	{
 		query = db.query.bind(db),
-		verifyValue = verifyPassword,
 		sendEmailChangeEmail = sendEmailChangeConfirmationEmail,
 		createRawToken = createToken,
 		hashRawToken = hashToken,
 	} = {},
 ) {
-	try {
-		const newEmail = normalizeEmail(email)
+	const newEmail = normalizeEmail(email)
 
-		console.log("requestEmailChange start", { userId, newEmail })
+	const currentUserResult = await query(
+		`
+		SELECT id, email, password_hash AS "passwordHash"
+		FROM users
+		WHERE id = $1
+		`,
+		[userId],
+	)
 
-		const currentUserResult = await query(
-			`
-			SELECT id, email, password_hash AS "passwordHash"
-			FROM users
-			WHERE id = $1
-			`,
-			[userId],
-		)
+	if (currentUserResult.rowCount === 0) {
+		throw createUserNotFoundError()
+	}
 
-		console.log("currentUserResult", {
-			rowCount: currentUserResult.rowCount,
-		})
+	const currentUser = currentUserResult.rows[0]
 
-		if (currentUserResult.rowCount === 0) {
-			throw createUserNotFoundError()
-		}
+	if (newEmail === normalizeEmail(currentUser.email)) {
+		throw createSameEmailError()
+	}
 
-		const currentUser = currentUserResult.rows[0]
+	const existingUserResult = await query(
+		`
+		SELECT id
+		FROM users
+		WHERE email = $1
+		LIMIT 1
+		`,
+		[newEmail],
+	)
 
-		if (newEmail === normalizeEmail(currentUser.email)) {
-			throw createSameEmailError()
-		}
+	if (existingUserResult.rowCount > 0) {
+		throw createEmailInUseError()
+	}
 
-		const existingUserResult = await query(
-			`
-			SELECT id
-			FROM users
-			WHERE email = $1
-			LIMIT 1
-			`,
-			[newEmail],
-		)
+	const token = createRawToken()
+	const tokenHash = hashRawToken(token)
+	const expiresAt = new Date(Date.now() + EMAIL_CHANGE_TOKEN_EXPIRES_MINUTES * 60 * 1000)
 
-		console.log("existingUserResult", {
-			rowCount: existingUserResult.rowCount,
-		})
+	await query(
+		`
+		UPDATE users
+		SET pending_email = $1,
+			pending_email_token_hash = $2,
+			pending_email_requested_at = NOW(),
+			pending_email_expires_at = $3
+		WHERE id = $4
+		`,
+		[newEmail, tokenHash, expiresAt, userId],
+	)
 
-		if (existingUserResult.rowCount > 0) {
-			throw createEmailInUseError()
-		}
+	await sendEmailChangeEmail({
+		currentEmail: currentUser.email,
+		newEmail,
+		token,
+	})
 
-		const token = createRawToken()
-		const tokenHash = hashRawToken(token)
-		const expiresAt = new Date(Date.now() + EMAIL_CHANGE_TOKEN_EXPIRES_MINUTES * 60 * 1000)
-
-		console.log("updating pending email columns")
-
-		await query(
-			`
-			UPDATE users
-			SET pending_email = $1,
-				pending_email_token_hash = $2,
-				pending_email_requested_at = NOW(),
-				pending_email_expires_at = $3
-			WHERE id = $4
-			`,
-			[newEmail, tokenHash, expiresAt, userId],
-		)
-
-		console.log("sending email change email")
-
-		await sendEmailChangeEmail({
-			currentEmail: currentUser.email,
-			newEmail,
-			token,
-		})
-
-		console.log("requestEmailChange success")
-
-		return {
-			message: "Verification email sent. Check your new email address to confirm the change.",
-		}
-	} catch (error) {
-		console.error("requestEmailChange failed:", {
-			message: error.message,
-			code: error.code,
-			status: error.status,
-			statusCode: error.statusCode,
-			stack: error.stack,
-		})
-
-		throw error
+	return {
+		message: "Verification email sent. Check your new email address to confirm the change.",
 	}
 }
 

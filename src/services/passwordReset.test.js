@@ -70,6 +70,7 @@ describe("password reset service", () => {
 	})
 
 	it("resets the password and marks active codes used when the code matches", async () => {
+		const revokedUserIds = []
 		const { calls, query } = createQueryStub({
 			user: { id: 12, email: "user@example.com" },
 			resetCode: {
@@ -83,6 +84,7 @@ describe("password reset service", () => {
 			query,
 			hashValue: async (value) => `hash:${value}`,
 			verifyValue: async (value, hash) => value === "123456" && hash === "hash:123456",
+			revokeSessions: async (userId) => revokedUserIds.push(userId),
 			now: () => new Date("2029-01-01T00:00:00.000Z"),
 		})
 
@@ -111,6 +113,7 @@ describe("password reset service", () => {
 			),
 			true,
 		)
+		assert.deepEqual(revokedUserIds, [12])
 	})
 
 	it("increments attempts and rejects a wrong code", async () => {
@@ -126,6 +129,7 @@ describe("password reset service", () => {
 		const service = createPasswordResetService({
 			query,
 			verifyValue: async () => false,
+			revokeSessions: async () => {},
 			now: () => new Date("2029-01-01T00:00:00.000Z"),
 		})
 

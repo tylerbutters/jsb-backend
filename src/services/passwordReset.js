@@ -3,6 +3,7 @@ import { db } from "../db.js"
 import { HttpError } from "../errors.js"
 import { sendPasswordResetCode } from "./email.js"
 import { hashPassword, verifyPassword } from "./password.js"
+import { revokeUserSessions } from "./sessions.js"
 
 export const PASSWORD_RESET_REQUEST_MESSAGE =
 	"If an account exists for that email, a reset code has been sent."
@@ -31,6 +32,7 @@ export function createPasswordResetService({
 	createCode = generateResetCode,
 	hashValue = hashPassword,
 	verifyValue = verifyPassword,
+	revokeSessions = revokeUserSessions,
 	now = () => new Date(),
 } = {}) {
 	async function findUserByEmail(email) {
@@ -134,6 +136,7 @@ export function createPasswordResetService({
 		`,
 			[passwordHash, user.id],
 		)
+		await revokeSessions(user.id)
 		await query(
 			`
 			UPDATE password_reset_codes

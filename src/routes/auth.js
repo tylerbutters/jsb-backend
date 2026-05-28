@@ -1,5 +1,7 @@
 import { Router } from "express"
 import { HttpError, asyncHandler } from "../errors.js"
+import { requireAuth, revokeCurrentSession, setSessionCookie } from "../middleware/auth.js"
+import { accountRecoveryRateLimiter, authRateLimiter } from "../middleware/rateLimiters.js"
 import { validateBody } from "../middleware/validate.js"
 import {
 	loginSchema,
@@ -8,6 +10,7 @@ import {
 } from "../schemas/auth.js"
 import { verifyPassword } from "../services/password.js"
 import { confirmPasswordReset, requestPasswordReset } from "../services/passwordReset.js"
+import { createUserSession } from "../services/sessions.js"
 import { getUserByEmailWithPassword } from "../services/users.js"
 
 const router = Router()
@@ -20,6 +23,7 @@ function createInvalidCredentialsError() {
 
 router.post(
 	"/password-reset/request",
+	accountRecoveryRateLimiter,
 	validateBody(passwordResetRequestSchema),
 	asyncHandler(async (req, res) => {
 		const result = await requestPasswordReset(req.validated.body)
@@ -30,6 +34,7 @@ router.post(
 
 router.post(
 	"/password-reset/confirm",
+	accountRecoveryRateLimiter,
 	validateBody(passwordResetConfirmSchema),
 	asyncHandler(async (req, res) => {
 		const result = await confirmPasswordReset(req.validated.body)
@@ -40,6 +45,7 @@ router.post(
 
 router.post(
 	"/",
+	authRateLimiter,
 	validateBody(loginSchema),
 	asyncHandler(async (req, res) => {
 		const { email, password } = req.validated.body
@@ -56,9 +62,32 @@ router.post(
 			throw createInvalidCredentialsError()
 		}
 
+		const session = await createUserSession(user.id)
+		setSessionCookie(res, session.token)
+
 		res.status(200).send({
 			message: "Login successful.",
 			user,
+		})
+	}),
+)
+
+router.get(
+	"/session",
+	requireAuth,
+	asyncHandler(async (req, res) => {
+		res.status(200).send({
+			user: req.currentUser,
+		})
+	}),
+)
+
+router.delete(
+	"/session",
+	revokeCurrentSession,
+	asyncHandler(async (req, res) => {
+		res.status(200).send({
+			message: "Logged out.",
 		})
 	}),
 )

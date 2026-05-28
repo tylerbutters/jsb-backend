@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import { HttpError } from "../errors.js"
 import { GAME_MODES } from "../gameModes.js"
 import {
@@ -165,7 +166,10 @@ export async function generateGamePrompt({ mode, difficulty = "easy" }) {
 	const prompt = generateLocalGamePrompt({ mode, difficulty })
 	if (!prompt) throw gameModeError(mode)
 
-	return prompt
+	return {
+		...prompt,
+		challengeId: randomUUID(),
+	}
 }
 
 export async function checkGameAnswer({ mode, prompt, answer }) {

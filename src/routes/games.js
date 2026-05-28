@@ -1,5 +1,6 @@
 import { Router } from "express"
 import { asyncHandler } from "../errors.js"
+import { clearSessionCookie, getSessionToken } from "../middleware/auth.js"
 import { validateBody, validateQuery } from "../middleware/validate.js"
 import {
 	gameCheckSchema,
@@ -7,7 +8,9 @@ import {
 	sandboxCheckSchema,
 	translateSchema,
 } from "../schemas/games.js"
+import { recordGameResult } from "../services/gameStats.js"
 import { checkGameAnswer, checkSandboxSentence, generateGamePrompt } from "../services/games.js"
+import { getSessionByToken } from "../services/sessions.js"
 import { translateJapanese } from "../services/translate.js"
 
 const router = Router()
@@ -18,6 +21,24 @@ async function sendJapaneseTranslation(req, res) {
 	res.status(200).send({
 		translation,
 	})
+}
+
+async function getOptionalCurrentUser(req, res) {
+	const token = getSessionToken(req)
+	if (!token) return null
+
+	try {
+		const session = await getSessionByToken(token)
+		if (!session) {
+			clearSessionCookie(res)
+			return null
+		}
+
+		return session.user
+	} catch (error) {
+		console.log(error)
+		return null
+	}
 }
 
 router.get(
@@ -46,6 +67,17 @@ router.post(
 	validateBody(gameCheckSchema),
 	asyncHandler(async (req, res) => {
 		const result = await checkGameAnswer(req.validated.body)
+		const currentUser = await getOptionalCurrentUser(req, res)
+		const { challengeId, mode } = req.validated.body
+
+		if (currentUser && challengeId) {
+			await recordGameResult({
+				userId: currentUser.id,
+				challengeId,
+				mode,
+				correct: result.correct,
+			})
+		}
 
 		res.status(200).send(result)
 	}),

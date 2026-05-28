@@ -24,6 +24,7 @@ import {
 	updateUser,
 } from "../services/users.js"
 import { createUserSession } from "../services/sessions.js"
+import { getUserGameStats } from "../services/gameStats.js"
 
 const router = Router()
 
@@ -83,6 +84,18 @@ router.post(
 		const result = await confirmEmailChange(req.validated.body)
 
 		res.status(200).send(result)
+	}),
+)
+
+router.get(
+	"/:user_id/stats",
+	validateParams(userParamsSchema),
+	requireAuth,
+	requireCurrentUserParam,
+	asyncHandler(async (req, res) => {
+		const stats = await getUserGameStats(req.validated.params.user_id)
+
+		res.status(200).send(stats)
 	}),
 )
 

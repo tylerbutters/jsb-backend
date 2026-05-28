@@ -245,6 +245,15 @@ describe("generateGamePrompt", () => {
 		assert.equal(prompt.profile.vocabLevel, "easy")
 	})
 
+	it("includes a challenge ID on generated prompts", async () => {
+		const prompt = await generateGamePrompt({ mode: "translate", difficulty: "easy" })
+
+		assert.match(
+			prompt.challengeId,
+			/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+		)
+	})
+
 	it("uses local generation for conjugation prompts", async () => {
 		const prompt = await generateGamePrompt({ mode: "conjugations", difficulty: "hard" })
 

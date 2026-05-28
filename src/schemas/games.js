@@ -50,6 +50,9 @@ export const gameCheckSchema = Joi.object({
 		"string.empty": "Answer is required",
 		"any.required": "Answer is required",
 	}),
+	challengeId: Joi.string().guid({ version: ["uuidv4"] }).messages({
+		"string.guid": "Challenge ID must be a valid UUID",
+	}),
 })
 	.required()
 	.messages({

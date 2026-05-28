@@ -25,7 +25,11 @@ import {
 	updateUser,
 } from "../services/users.js"
 import { createUserSession } from "../services/sessions.js"
-import { getUserGameHistory, getUserGameStats } from "../services/gameStats.js"
+import {
+	getUserGameHistory,
+	getUserGameQuota,
+	getUserGameStats,
+} from "../services/gameStats.js"
 
 const router = Router()
 
@@ -97,6 +101,18 @@ router.get(
 		const stats = await getUserGameStats(req.validated.params.user_id)
 
 		res.status(200).send(stats)
+	}),
+)
+
+router.get(
+	"/:user_id/game-quota",
+	validateParams(userParamsSchema),
+	requireAuth,
+	requireCurrentUserParam,
+	asyncHandler(async (req, res) => {
+		const quota = await getUserGameQuota(req.validated.params.user_id)
+
+		res.status(200).send(quota)
 	}),
 )
 

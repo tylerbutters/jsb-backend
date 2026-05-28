@@ -5,7 +5,7 @@ import { hashPassword, verifyPassword } from "./password.js"
 import { sendEmailChangeConfirmationEmail } from "./email.js"
 
 const publicUserFields = `
-	id, email, display_name AS "displayName", created_at AS "createdAt", updated_at AS "updatedAt"
+	id, email, display_name AS "displayName", plan, created_at AS "createdAt", updated_at AS "updatedAt"
 `
 const EMAIL_CHANGE_TOKEN_EXPIRES_MINUTES = 30
 

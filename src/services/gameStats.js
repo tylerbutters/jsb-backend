@@ -1,4 +1,5 @@
 import { db } from "../db.js"
+import { HttpError } from "../errors.js"
 
 export const TRACKED_GAME_MODES = [
 	{ mode: "translate", label: "Translate" },
@@ -9,11 +10,69 @@ export const TRACKED_GAME_MODES = [
 ]
 export const GAME_DIFFICULTIES = ["easy", "medium", "hard"]
 export const GAME_STAT_FILTERS = ["all", ...GAME_DIFFICULTIES]
+export const FREE_DAILY_CHALLENGE_LIMIT = 3
 
 const trackedModeLabels = new Map(
 	TRACKED_GAME_MODES.map((gameMode) => [gameMode.mode, gameMode.label]),
 )
 const validDifficulties = new Set(GAME_DIFFICULTIES)
+const PREMIUM_PLAN = "premium"
+
+function createUserNotFoundError() {
+	return new HttpError(404, "User not found.", {
+		code: "USER_NOT_FOUND",
+	})
+}
+
+function createDailyLimitReachedError(quota) {
+	return new HttpError(
+		403,
+		`You've used today's ${FREE_DAILY_CHALLENGE_LIMIT} free challenge checks.`,
+		{
+			code: "DAILY_GAME_LIMIT_REACHED",
+			details: {
+				quota,
+			},
+		},
+	)
+}
+
+function createChallengeIdRequiredError() {
+	return new HttpError(400, "Challenge ID is required for challenge checks.", {
+		code: "CHALLENGE_ID_REQUIRED_FOR_CHALLENGE_CHECKS",
+	})
+}
+
+function normalizePlan(plan) {
+	return plan === PREMIUM_PLAN ? PREMIUM_PLAN : "free"
+}
+
+function utcDayRange(now = new Date()) {
+	const start = new Date(
+		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+	)
+	const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
+
+	return { start, end }
+}
+
+function createQuota({ plan, used, resetsAt }) {
+	const normalizedPlan = normalizePlan(plan)
+	const normalizedUsed = normalizeCount(used)
+	const isPremium = normalizedPlan === PREMIUM_PLAN
+	const remaining = isPremium
+		? null
+		: Math.max(FREE_DAILY_CHALLENGE_LIMIT - normalizedUsed, 0)
+
+	return {
+		plan: normalizedPlan,
+		limit: isPremium ? null : FREE_DAILY_CHALLENGE_LIMIT,
+		used: normalizedUsed,
+		remaining,
+		resetsAt: resetsAt.toISOString(),
+		canPlay: isPremium || remaining > 0,
+	}
+}
 
 function calculateAccuracy(won, totalGames) {
 	if (!totalGames) return 0
@@ -33,6 +92,96 @@ function createStats({ mode, label, totalGames = 0, won = 0, failed = 0 } = {}) 
 
 function normalizeCount(value) {
 	return Number(value || 0)
+}
+
+async function getUserPlan(
+	userId,
+	{ query = (sql, params) => db.query(sql, params) } = {},
+) {
+	const result = await query(
+		`
+		SELECT plan
+		FROM users
+		WHERE id = $1
+		`,
+		[userId],
+	)
+
+	if (result.rowCount === 0) throw createUserNotFoundError()
+
+	return normalizePlan(result.rows[0]?.plan)
+}
+
+async function hasRecordedChallengeResult(
+	userId,
+	challengeId,
+	{ query = (sql, params) => db.query(sql, params) } = {},
+) {
+	const result = await query(
+		`
+		SELECT 1
+		FROM user_game_results
+		WHERE user_id = $1
+			AND challenge_id = $2
+		LIMIT 1
+		`,
+		[userId, challengeId],
+	)
+
+	return result.rowCount > 0
+}
+
+async function countUserGameResultsForUtcDay(
+	userId,
+	{ now = new Date(), query = (sql, params) => db.query(sql, params) } = {},
+) {
+	const { start, end } = utcDayRange(now)
+	const result = await query(
+		`
+		SELECT COUNT(*) AS used
+		FROM user_game_results
+		WHERE user_id = $1
+			AND created_at >= $2
+			AND created_at < $3
+		`,
+		[userId, start, end],
+	)
+
+	return {
+		used: normalizeCount(result.rows[0]?.used),
+		resetsAt: end,
+	}
+}
+
+export async function getUserGameQuota(
+	userId,
+	{ now = new Date(), query = (sql, params) => db.query(sql, params) } = {},
+) {
+	const [plan, dailyUsage] = await Promise.all([
+		getUserPlan(userId, { query }),
+		countUserGameResultsForUtcDay(userId, { now, query }),
+	])
+
+	return createQuota({
+		plan,
+		used: dailyUsage.used,
+		resetsAt: dailyUsage.resetsAt,
+	})
+}
+
+export async function assertCanUseChallengeCheck(
+	userId,
+	challengeId,
+	{ now = new Date(), query = (sql, params) => db.query(sql, params) } = {},
+) {
+	if (!challengeId) throw createChallengeIdRequiredError()
+
+	const alreadyRecorded = await hasRecordedChallengeResult(userId, challengeId, { query })
+	const quota = await getUserGameQuota(userId, { now, query })
+
+	if (alreadyRecorded || quota.canPlay) return quota
+
+	throw createDailyLimitReachedError(quota)
 }
 
 function normalizeDifficulty(difficulty) {

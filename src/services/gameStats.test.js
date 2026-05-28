@@ -1,6 +1,13 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { getUserGameHistory, getUserGameStats, recordGameResult } from "./gameStats.js"
+import { HttpError } from "../errors.js"
+import {
+	assertCanUseChallengeCheck,
+	getUserGameHistory,
+	getUserGameQuota,
+	getUserGameStats,
+	recordGameResult,
+} from "./gameStats.js"
 
 describe("recordGameResult", () => {
 	it("records the first result for a challenge", async () => {
@@ -281,5 +288,122 @@ describe("getUserGameStats", () => {
 				{ mode: "reorder", totalGames: 0 },
 			],
 		)
+	})
+})
+
+describe("getUserGameQuota", () => {
+	it("returns a free user's daily UTC quota", async () => {
+		const quota = await getUserGameQuota(12, {
+			now: new Date("2026-05-28T13:15:00.000Z"),
+			query: async (sql, params) => {
+				if (sql.includes("SELECT plan")) {
+					assert.deepEqual(params, [12])
+					return { rowCount: 1, rows: [{ plan: "free" }] }
+				}
+
+				assert.match(sql, /COUNT\(\*\) AS used/)
+				assert.deepEqual(params, [
+					12,
+					new Date("2026-05-28T00:00:00.000Z"),
+					new Date("2026-05-29T00:00:00.000Z"),
+				])
+				return { rowCount: 1, rows: [{ used: "1" }] }
+			},
+		})
+
+		assert.deepEqual(quota, {
+			plan: "free",
+			limit: 3,
+			used: 1,
+			remaining: 2,
+			resetsAt: "2026-05-29T00:00:00.000Z",
+			canPlay: true,
+		})
+	})
+
+	it("returns unlimited quota fields for premium users", async () => {
+		const quota = await getUserGameQuota(12, {
+			now: new Date("2026-05-28T13:15:00.000Z"),
+			query: async (sql) => {
+				if (sql.includes("SELECT plan")) {
+					return { rowCount: 1, rows: [{ plan: "premium" }] }
+				}
+
+				return { rowCount: 1, rows: [{ used: "20" }] }
+			},
+		})
+
+		assert.deepEqual(quota, {
+			plan: "premium",
+			limit: null,
+			used: 20,
+			remaining: null,
+			resetsAt: "2026-05-29T00:00:00.000Z",
+			canPlay: true,
+		})
+	})
+})
+
+describe("assertCanUseChallengeCheck", () => {
+	it("rejects new free checks after the daily limit", async () => {
+		await assert.rejects(
+			() =>
+				assertCanUseChallengeCheck(
+					12,
+					"1e5eb8e7-f91a-4c61-8f37-62b1a27ddf95",
+					{
+						now: new Date("2026-05-28T13:15:00.000Z"),
+						query: async (sql) => {
+							if (sql.includes("FROM user_game_results") && sql.includes("LIMIT 1")) {
+								return { rowCount: 0, rows: [] }
+							}
+
+							if (sql.includes("SELECT plan")) {
+								return { rowCount: 1, rows: [{ plan: "free" }] }
+							}
+
+							return { rowCount: 1, rows: [{ used: "3" }] }
+						},
+					},
+				),
+			(error) => {
+				assert.equal(error instanceof HttpError, true)
+				assert.equal(error.status, 403)
+				assert.equal(error.code, "DAILY_GAME_LIMIT_REACHED")
+				assert.deepEqual(error.details.quota, {
+					plan: "free",
+					limit: 3,
+					used: 3,
+					remaining: 0,
+					resetsAt: "2026-05-29T00:00:00.000Z",
+					canPlay: false,
+				})
+				return true
+			},
+		)
+	})
+
+	it("allows duplicate checks without consuming another quota slot", async () => {
+		const quota = await assertCanUseChallengeCheck(
+			12,
+			"1e5eb8e7-f91a-4c61-8f37-62b1a27ddf95",
+			{
+				now: new Date("2026-05-28T13:15:00.000Z"),
+				query: async (sql) => {
+					if (sql.includes("FROM user_game_results") && sql.includes("LIMIT 1")) {
+						return { rowCount: 1, rows: [{ "?column?": 1 }] }
+					}
+
+					if (sql.includes("SELECT plan")) {
+						return { rowCount: 1, rows: [{ plan: "free" }] }
+					}
+
+					return { rowCount: 1, rows: [{ used: "3" }] }
+				},
+			},
+		)
+
+		assert.equal(quota.canPlay, false)
+		assert.equal(quota.remaining, 0)
 	})
 })

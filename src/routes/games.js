@@ -1,5 +1,5 @@
 import { Router } from "express"
-import { asyncHandler } from "../errors.js"
+import { HttpError, asyncHandler } from "../errors.js"
 import { clearSessionCookie, getSessionToken } from "../middleware/auth.js"
 import { validateBody, validateQuery } from "../middleware/validate.js"
 import {
@@ -8,7 +8,11 @@ import {
 	sandboxCheckSchema,
 	translateSchema,
 } from "../schemas/games.js"
-import { recordGameResult } from "../services/gameStats.js"
+import {
+	assertCanUseChallengeCheck,
+	getUserGameQuota,
+	recordGameResult,
+} from "../services/gameStats.js"
 import { checkGameAnswer, checkSandboxSentence, generateGamePrompt } from "../services/games.js"
 import { getSessionByToken } from "../services/sessions.js"
 import { translateJapanese } from "../services/translate.js"
@@ -41,6 +45,12 @@ async function getOptionalCurrentUser(req, res) {
 	}
 }
 
+function createLoginRequiredForChallengeChecksError() {
+	return new HttpError(401, "Log in to check challenge answers.", {
+		code: "LOGIN_REQUIRED_FOR_CHALLENGE_CHECKS",
+	})
+}
+
 router.get(
 	"/prompt",
 	validateQuery(gamePromptQuerySchema),
@@ -66,24 +76,32 @@ router.post(
 	"/check",
 	validateBody(gameCheckSchema),
 	asyncHandler(async (req, res) => {
-		const result = await checkGameAnswer(req.validated.body)
 		const currentUser = await getOptionalCurrentUser(req, res)
 		const { answer, challengeId, difficulty, mode, prompt } = req.validated.body
 
-		if (currentUser && challengeId) {
-			await recordGameResult({
-				userId: currentUser.id,
-				challengeId,
-				mode,
-				difficulty,
-				prompt,
-				answer,
-				correct: result.correct,
-				feedback: result.feedback,
-			})
+		if (!currentUser) {
+			throw createLoginRequiredForChallengeChecksError()
 		}
 
-		res.status(200).send(result)
+		await assertCanUseChallengeCheck(currentUser.id, challengeId)
+
+		const result = await checkGameAnswer(req.validated.body)
+		await recordGameResult({
+			userId: currentUser.id,
+			challengeId,
+			mode,
+			difficulty,
+			prompt,
+			answer,
+			correct: result.correct,
+			feedback: result.feedback,
+		})
+		const quota = await getUserGameQuota(currentUser.id)
+
+		res.status(200).send({
+			...result,
+			quota,
+		})
 	}),
 )
 

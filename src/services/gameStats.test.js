@@ -1,6 +1,5 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { HttpError } from "../errors.js"
 import {
 	assertCanUseChallengeCheck,
 	getUserGameHistory,
@@ -196,7 +195,7 @@ describe("getUserGameHistory", () => {
 })
 
 describe("getUserGameStats", () => {
-	it("returns aggregate totals and zero-filled game rows", async () => {
+	it("returns aggregate totals and zero-backgrounded game rows", async () => {
 		const stats = await getUserGameStats(12, {
 			query: async (sql, params) => {
 				assert.match(sql, /FROM user_game_results/)
@@ -334,7 +333,7 @@ describe("getUserGameStats", () => {
 })
 
 describe("getUserGameQuota", () => {
-	it("returns a free user's daily UTC quota", async () => {
+	it("returns unlimited quota fields while premium limits are disabled", async () => {
 		const quota = await getUserGameQuota(12, {
 			now: new Date("2026-05-28T13:15:00.000Z"),
 			query: async (sql, params) => {
@@ -355,9 +354,9 @@ describe("getUserGameQuota", () => {
 
 		assert.deepEqual(quota, {
 			plan: "free",
-			limit: 3,
+			limit: null,
 			used: 1,
-			remaining: 2,
+			remaining: null,
 			resetsAt: "2026-05-29T00:00:00.000Z",
 			canPlay: true,
 		})
@@ -387,65 +386,49 @@ describe("getUserGameQuota", () => {
 })
 
 describe("assertCanUseChallengeCheck", () => {
-	it("rejects new free checks after the daily limit", async () => {
-		await assert.rejects(
-			() =>
-				assertCanUseChallengeCheck(
-					12,
-					"1e5eb8e7-f91a-4c61-8f37-62b1a27ddf95",
-					{
-						now: new Date("2026-05-28T13:15:00.000Z"),
-						query: async (sql) => {
-							if (sql.includes("FROM user_game_results") && sql.includes("LIMIT 1")) {
-								return { rowCount: 0, rows: [] }
-							}
+	it("allows new free checks after the old daily limit while premium limits are disabled", async () => {
+		const quota = await assertCanUseChallengeCheck(12, "1e5eb8e7-f91a-4c61-8f37-62b1a27ddf95", {
+			now: new Date("2026-05-28T13:15:00.000Z"),
+			query: async (sql) => {
+				if (sql.includes("FROM user_game_results") && sql.includes("LIMIT 1")) {
+					return { rowCount: 0, rows: [] }
+				}
 
-							if (sql.includes("SELECT plan")) {
-								return { rowCount: 1, rows: [{ plan: "free" }] }
-							}
+				if (sql.includes("SELECT plan")) {
+					return { rowCount: 1, rows: [{ plan: "free" }] }
+				}
 
-							return { rowCount: 1, rows: [{ used: "3" }] }
-						},
-					},
-				),
-			(error) => {
-				assert.equal(error instanceof HttpError, true)
-				assert.equal(error.status, 403)
-				assert.equal(error.code, "DAILY_GAME_LIMIT_REACHED")
-				assert.deepEqual(error.details.quota, {
-					plan: "free",
-					limit: 3,
-					used: 3,
-					remaining: 0,
-					resetsAt: "2026-05-29T00:00:00.000Z",
-					canPlay: false,
-				})
-				return true
+				return { rowCount: 1, rows: [{ used: "3" }] }
 			},
-		)
+		})
+
+		assert.deepEqual(quota, {
+			plan: "free",
+			limit: null,
+			used: 3,
+			remaining: null,
+			resetsAt: "2026-05-29T00:00:00.000Z",
+			canPlay: true,
+		})
 	})
 
 	it("allows duplicate checks without consuming another quota slot", async () => {
-		const quota = await assertCanUseChallengeCheck(
-			12,
-			"1e5eb8e7-f91a-4c61-8f37-62b1a27ddf95",
-			{
-				now: new Date("2026-05-28T13:15:00.000Z"),
-				query: async (sql) => {
-					if (sql.includes("FROM user_game_results") && sql.includes("LIMIT 1")) {
-						return { rowCount: 1, rows: [{ "?column?": 1 }] }
-					}
+		const quota = await assertCanUseChallengeCheck(12, "1e5eb8e7-f91a-4c61-8f37-62b1a27ddf95", {
+			now: new Date("2026-05-28T13:15:00.000Z"),
+			query: async (sql) => {
+				if (sql.includes("FROM user_game_results") && sql.includes("LIMIT 1")) {
+					return { rowCount: 1, rows: [{ "?column?": 1 }] }
+				}
 
-					if (sql.includes("SELECT plan")) {
-						return { rowCount: 1, rows: [{ plan: "free" }] }
-					}
+				if (sql.includes("SELECT plan")) {
+					return { rowCount: 1, rows: [{ plan: "free" }] }
+				}
 
-					return { rowCount: 1, rows: [{ used: "3" }] }
-				},
+				return { rowCount: 1, rows: [{ used: "3" }] }
 			},
-		)
+		})
 
-		assert.equal(quota.canPlay, false)
-		assert.equal(quota.remaining, 0)
+		assert.equal(quota.canPlay, true)
+		assert.equal(quota.remaining, null)
 	})
 })

@@ -29,14 +29,15 @@ import {
 	getUserGameHistory,
 	getUserGameQuota,
 	getUserGameStats,
-	FREE_STATS_VISIBILITY,
 	PREMIUM_STATS_VISIBILITY,
 } from "../services/gameStats.js"
 
 const router = Router()
 
 function statsVisibilityForUser(user) {
-	return user?.plan === "premium" ? PREMIUM_STATS_VISIBILITY : FREE_STATS_VISIBILITY
+	// TODO(premium): Re-enable today-only stats/history for free accounts:
+	// return user?.plan === "premium" ? PREMIUM_STATS_VISIBILITY : FREE_STATS_VISIBILITY
+	return PREMIUM_STATS_VISIBILITY
 }
 
 router.post(

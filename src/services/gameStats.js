@@ -65,18 +65,24 @@ function statsVisibilityRange({ visibility = PREMIUM_STATS_VISIBILITY, now = new
 function createQuota({ plan, used, resetsAt }) {
 	const normalizedPlan = normalizePlan(plan)
 	const normalizedUsed = normalizeCount(used)
+
+	/*
+	TODO(premium): Re-enable finite free quotas when premium is live.
 	const isPremium = normalizedPlan === PREMIUM_PLAN
 	const remaining = isPremium
 		? null
 		: Math.max(FREE_DAILY_CHALLENGE_LIMIT - normalizedUsed, 0)
+	const limit = isPremium ? null : FREE_DAILY_CHALLENGE_LIMIT
+	const canPlay = isPremium || remaining > 0
+	*/
 
 	return {
 		plan: normalizedPlan,
-		limit: isPremium ? null : FREE_DAILY_CHALLENGE_LIMIT,
+		limit: null,
 		used: normalizedUsed,
-		remaining,
+		remaining: null,
 		resetsAt: resetsAt.toISOString(),
-		canPlay: isPremium || remaining > 0,
+		canPlay: true,
 	}
 }
 
@@ -187,7 +193,9 @@ export async function assertCanUseChallengeCheck(
 
 	if (alreadyRecorded || quota.canPlay) return quota
 
-	throw createDailyLimitReachedError(quota)
+	// TODO(premium): Re-enable this rejection when free quota limits return.
+	// throw createDailyLimitReachedError(quota)
+	return quota
 }
 
 function normalizeDifficulty(difficulty) {
